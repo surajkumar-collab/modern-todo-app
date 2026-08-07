@@ -1,17 +1,7 @@
-function App() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900">
-      <div className="rounded-xl bg-slate-800 p-10 shadow-xl">
-        <h1 className="text-4xl font-bold text-blue-500">
-          Todo App 🚀
-        </h1>
+import Auth from "./components/Auth";
 
-        <p className="mt-3 text-slate-400">
-          Tailwind CSS v4 is working!
-        </p>
-      </div>
-    </div>
-  );
+function App() {
+  return <Auth />;
 }
 
 export default App;
