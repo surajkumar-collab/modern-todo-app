@@ -4,77 +4,173 @@ import { FiEye, FiEyeOff } from "react-icons/fi";
 
 function Auth() {
   const [showPassword, setShowPassword] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
 
   return (
     <div className="relative flex min-h-screen overflow-hidden bg-slate-950">
 
-      {/* Background Glow */}
-      <div className="absolute -left-40 -top-40 h-96 w-96 rounded-full bg-blue-600/20 blur-3xl"></div>
-      <div className="absolute bottom-0 right-0 h-[500px] w-[500px] rounded-full bg-cyan-500/10 blur-3xl"></div>
+      {/* Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950"></div>
+
+      <div className="absolute -top-40 -left-40 h-[500px] w-[500px] rounded-full bg-blue-500/20 blur-[120px]"></div>
+
+      <div className="absolute bottom-[-150px] right-[-100px] h-[500px] w-[500px] rounded-full bg-cyan-400/15 blur-[120px]"></div>
 
       {/* Left Section */}
-      <div className="hidden w-1/2 items-center justify-center p-16 lg:flex">
-        <div className="max-w-lg">
 
-          <h1 className="text-6xl font-bold text-white">
-            Task<span className="text-blue-500">Flow</span>
+      <div className="relative z-10 hidden w-1/2 items-center justify-center p-16 lg:flex">
+
+        <div className="max-w-xl">
+
+          <h1 className="text-7xl font-extrabold tracking-tight text-white">
+            Task
+            <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              Flow
+            </span>
           </h1>
 
-          <p className="mt-6 text-2xl text-slate-300">
+          <p className="mt-8 text-2xl leading-relaxed text-slate-300">
             Organize your work.
             <br />
             Simplify your life.
           </p>
 
-          <p className="mt-8 leading-7 text-slate-500">
+          <p className="mt-8 leading-8 text-slate-400">
             Stay productive with a modern task manager built for students,
-            developers, freelancers, and professionals.
+            developers, freelancers and professionals.
           </p>
 
+          <div className="mt-12 space-y-4">
+
+            <div className="flex items-center gap-4 rounded-xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/50 hover:bg-slate-900/70">
+
+              <div className="text-2xl">
+                🚀
+              </div>
+
+              <div>
+
+                <h3 className="font-semibold text-white">
+                  Lightning Fast
+                </h3>
+
+                <p className="text-sm text-slate-400">
+                  Organize your tasks instantly.
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="flex items-center gap-4 rounded-xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/50 hover:bg-slate-900/70">
+
+              <div className="text-2xl">
+                ☁️
+              </div>
+
+              <div>
+
+                <h3 className="font-semibold text-white">
+                  Cloud Sync
+                </h3>
+
+                <p className="text-sm text-slate-400">
+                  Access your tasks from anywhere.
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="flex items-center gap-4 rounded-xl border border-slate-800 bg-slate-900/40 p-4 backdrop-blur transition-all duration-300 hover:-translate-y-1 hover:border-blue-500/50 hover:bg-slate-900/70">
+
+              <div className="text-2xl">
+                🔒
+              </div>
+
+              <div>
+
+                <h3 className="font-semibold text-white">
+                  Secure Authentication
+                </h3>
+
+                <p className="text-sm text-slate-400">
+                  Powered by Supabase.
+                </p>
+
+              </div>
+
+            </div>
+
+          </div>
+
         </div>
+
       </div>
 
       {/* Right Section */}
-      <div className="flex w-full items-center justify-center p-6 lg:w-1/2">
+
+      <div className="relative z-10 flex w-full items-center justify-center p-6 lg:w-1/2">
 
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative z-10 w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-10 shadow-2xl backdrop-blur-xl"
+          initial={{ opacity: 0, y: 30, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.45 }}
+          className="w-full max-w-md rounded-3xl border border-slate-700/60 bg-slate-900/60 p-12 shadow-2xl backdrop-blur-xl"
         >
 
           <h2 className="text-3xl font-bold text-white">
-            Welcome Back 👋
+
+            {isLogin
+              ? "Welcome Back 👋"
+              : "Create Account 🚀"}
+
           </h2>
 
           <p className="mt-2 text-slate-400">
-            Sign in to continue.
+
+            {isLogin
+              ? "Sign in to continue."
+              : "Create your TaskFlow account."}
+
           </p>
 
-          <div className="mt-8 space-y-5">
+          <div className="mt-8 space-y-7">
 
-            {/* Email */}
+            {!isLogin && (
+
+              <div>
+
+                <label className="mb-3 block text-sm text-slate-300">
+                  Full Name
+                </label>
+
+                <input
+                  type="text"
+                  placeholder="Enter your full name"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-5 py-4 text-lg text-white placeholder:text-slate-500 outline-none transition focus:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
+                />
+
+              </div>
+
+            )}
 
             <div>
 
-              <label className="mb-2 block text-sm text-slate-300">
+              <label className="mb-3 block text-sm text-slate-300">
                 Email
               </label>
 
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 text-white outline-none transition focus:border-blue-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-5 py-4 text-lg text-white placeholder:text-slate-500 outline-none transition focus:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
               />
 
             </div>
+                        <div>
 
-            {/* Password */}
-
-            <div>
-
-              <label className="mb-2 block text-sm text-slate-300">
+              <label className="mb-3 block text-sm text-slate-300">
                 Password
               </label>
 
@@ -83,36 +179,46 @@ function Auth() {
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Enter your password"
-                  className="w-full rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 pr-12 text-white outline-none transition focus:border-blue-500"
+                  className="w-full rounded-xl border border-slate-700 bg-slate-800/60 px-5 py-4 pr-14 text-lg text-white placeholder:text-slate-500 outline-none transition focus:bg-slate-800 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30"
                 />
 
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-white"
                 >
-                  {showPassword ? <FiEyeOff /> : <FiEye />}
+                  {showPassword ? (
+                    <FiEyeOff size={20} />
+                  ) : (
+                    <FiEye size={20} />
+                  )}
                 </button>
 
               </div>
 
             </div>
 
-            {/* Button */}
-
             <button
-              className="w-full rounded-xl bg-blue-600 py-3 font-semibold text-white transition duration-300 hover:scale-[1.02] hover:bg-blue-700 active:scale-95"
+              className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 py-4 text-lg font-semibold text-white transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-cyan-500/30 active:scale-95"
             >
-              Sign In
+              {isLogin ? "Sign In" : "Create Account"}
             </button>
 
           </div>
 
           <p className="mt-8 text-center text-slate-400">
-            Don't have an account?{" "}
-            <span className="cursor-pointer font-semibold text-blue-500 hover:text-blue-400">
-              Sign Up
-            </span>
+
+            {isLogin
+              ? "Don't have an account?"
+              : "Already have an account?"}
+
+            <button
+              onClick={() => setIsLogin(!isLogin)}
+              className="ml-2 font-semibold text-blue-500 transition hover:text-blue-400"
+            >
+              {isLogin ? "Sign Up" : "Sign In"}
+            </button>
+
           </p>
 
         </motion.div>
