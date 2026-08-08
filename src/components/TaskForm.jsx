@@ -1,8 +1,16 @@
-import { useState } from "react";
-import { FiX, FiCalendar, FiPlus } from "react-icons/fi";
+import { useEffect, useState } from "react";
+import { FiX, FiCalendar, FiPlus, FiEdit3 } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 
-function TaskForm({ user, onTaskCreated, onClose }) {
+function TaskForm({
+  user,
+  task = null,
+  onTaskCreated,
+  onTaskUpdated,
+  onClose,
+}) {
+  const isEditing = Boolean(task);
+
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("General");
@@ -11,6 +19,22 @@ function TaskForm({ user, onTaskCreated, onClose }) {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (task) {
+      setTitle(task.title || "");
+      setDescription(task.description || "");
+      setCategory(task.category || "General");
+      setPriority(task.priority || "medium");
+      setDueDate(task.due_date || "");
+    } else {
+      setTitle("");
+      setDescription("");
+      setCategory("General");
+      setPriority("medium");
+      setDueDate("");
+    }
+  }, [task]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -30,41 +54,63 @@ function TaskForm({ user, onTaskCreated, onClose }) {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .insert([
-          {
-            user_id: user.id,
+      const taskData = {
+        title: title.trim(),
+        description: description.trim() || null,
+        category,
+        priority,
+        due_date: dueDate || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (isEditing) {
+        const { data, error } = await supabase
+          .from("tasks")
+          .update({
             title: title.trim(),
             description: description.trim() || null,
             category,
             priority,
             due_date: dueDate || null,
-          },
-        ])
-        .select()
-        .single();
+            updated_at: new Date(). toISOString(),
+          })
+          .eq("id", task.id)
+          .eq("user_id", user.id)
+          .select()
+          .single();
 
-      if (error) {
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        if (onTaskUpdated) {
+          onTaskUpdated(data);
+        }
+      } else {
+        const { data, error } = await supabase
+          .from("tasks")
+          .insert([
+            {
+              ...taskData,
+              user_id: user.id,
+            },
+          ])
+          .select()
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (onTaskCreated) {
+          onTaskCreated(data);
+        }
       }
 
-      setTitle("");
-      setDescription("");
-      setCategory("General");
-      setPriority("medium");
-      setDueDate("");
-
-      if (onTaskCreated) {
-        onTaskCreated(data);
-      }
-
-      if (onClose) {
-        onClose();
-      }
+      onClose();
     } catch (err) {
-      console.error("Create task error:", err);
-      setError(err.message || "Failed to create task.");
+      console.error("Task save error:", err);
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -81,11 +127,13 @@ function TaskForm({ user, onTaskCreated, onClose }) {
 
           <div>
             <h2 className="text-2xl font-bold text-white">
-              Add New Task
+              {isEditing ? "Edit Task" : "Add New Task"}
             </h2>
 
             <p className="mt-1 text-sm text-slate-400">
-              Create a task and stay productive.
+              {isEditing
+                ? "Update your task details."
+                : "Create a task and stay productive."}
             </p>
           </div>
 
@@ -107,14 +155,11 @@ function TaskForm({ user, onTaskCreated, onClose }) {
           </div>
         )}
 
-        {/* Form */}
-
         <form onSubmit={handleSubmit} className="space-y-5">
 
           {/* Title */}
 
           <div>
-
             <label className="mb-2 block text-sm font-medium text-slate-300">
               Task Title
             </label>
@@ -127,13 +172,11 @@ function TaskForm({ user, onTaskCreated, onClose }) {
               className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
               autoFocus
             />
-
           </div>
 
           {/* Description */}
 
           <div>
-
             <label className="mb-2 block text-sm font-medium text-slate-300">
               Description
             </label>
@@ -145,17 +188,13 @@ function TaskForm({ user, onTaskCreated, onClose }) {
               rows={3}
               className="w-full resize-none rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
             />
-
           </div>
 
           {/* Category + Priority */}
 
           <div className="grid gap-4 sm:grid-cols-2">
 
-            {/* Category */}
-
             <div>
-
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 Category
               </label>
@@ -171,13 +210,9 @@ function TaskForm({ user, onTaskCreated, onClose }) {
                 <option value="Personal">Personal</option>
                 <option value="Health">Health</option>
               </select>
-
             </div>
 
-            {/* Priority */}
-
             <div>
-
               <label className="mb-2 block text-sm font-medium text-slate-300">
                 Priority
               </label>
@@ -191,7 +226,6 @@ function TaskForm({ user, onTaskCreated, onClose }) {
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
               </select>
-
             </div>
 
           </div>
@@ -199,7 +233,6 @@ function TaskForm({ user, onTaskCreated, onClose }) {
           {/* Due Date */}
 
           <div>
-
             <label className="mb-2 block text-sm font-medium text-slate-300">
               Due Date
             </label>
@@ -219,7 +252,6 @@ function TaskForm({ user, onTaskCreated, onClose }) {
               />
 
             </div>
-
           </div>
 
           {/* Buttons */}
@@ -239,9 +271,17 @@ function TaskForm({ user, onTaskCreated, onClose }) {
               disabled={loading}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 font-semibold text-white transition hover:shadow-lg hover:shadow-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <FiPlus size={18} />
+              {isEditing ? (
+                <FiEdit3 size={18} />
+              ) : (
+                <FiPlus size={18} />
+              )}
 
-              {loading ? "Adding..." : "Add Task"}
+              {loading
+                ? "Saving..."
+                : isEditing
+                ? "Save Changes"
+                : "Add Task"}
             </button>
 
           </div>

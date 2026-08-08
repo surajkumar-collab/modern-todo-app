@@ -1,6 +1,7 @@
 import { useState } from "react";
 import TaskForm from "./TaskForm";
 import TaskList from "./TaskList";
+
 import {
   FiCheckSquare,
   FiClock,
@@ -14,12 +15,14 @@ import {
 function Dashboard({ user, onLogout }) {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [editingTask, setEditingTask] = useState(null);
 
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
     completed: 0,
   });
+
   const userName =
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
@@ -37,7 +40,9 @@ function Dashboard({ user, onLogout }) {
 
           <div className="flex items-center gap-3">
 
-            <button className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white lg:hidden">
+            <button
+              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white lg:hidden"
+            >
               <FiMenu size={22} />
             </button>
 
@@ -69,6 +74,7 @@ function Dashboard({ user, onLogout }) {
           <div className="flex items-center gap-4">
 
             <div className="hidden text-right sm:block">
+
               <p className="text-sm font-medium text-white">
                 {userName}
               </p>
@@ -76,6 +82,7 @@ function Dashboard({ user, onLogout }) {
               <p className="text-xs text-slate-500">
                 {user?.email}
               </p>
+
             </div>
 
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 font-bold">
@@ -117,6 +124,7 @@ function Dashboard({ user, onLogout }) {
 
         </section>
 
+
         {/* ================= STATS ================= */}
 
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -128,13 +136,15 @@ function Dashboard({ user, onLogout }) {
             <div className="flex items-center justify-between">
 
               <div>
+
                 <p className="text-sm text-slate-400">
                   Total Tasks
                 </p>
 
                 <p className="mt-3 text-3xl font-bold">
-                  <h2>{stats.total}</h2>
+                  {stats.total}
                 </p>
+
               </div>
 
               <div className="rounded-xl bg-blue-500/10 p-3 text-blue-400">
@@ -145,6 +155,7 @@ function Dashboard({ user, onLogout }) {
 
           </div>
 
+
           {/* Active */}
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-yellow-500/30">
@@ -152,13 +163,15 @@ function Dashboard({ user, onLogout }) {
             <div className="flex items-center justify-between">
 
               <div>
+
                 <p className="text-sm text-slate-400">
                   Active Tasks
                 </p>
 
                 <p className="mt-3 text-3xl font-bold">
-                  <h2>{stats.active}</h2>
+                  {stats.active}
                 </p>
+
               </div>
 
               <div className="rounded-xl bg-yellow-500/10 p-3 text-yellow-400">
@@ -169,6 +182,7 @@ function Dashboard({ user, onLogout }) {
 
           </div>
 
+
           {/* Completed */}
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-green-500/30">
@@ -176,13 +190,15 @@ function Dashboard({ user, onLogout }) {
             <div className="flex items-center justify-between">
 
               <div>
+
                 <p className="text-sm text-slate-400">
                   Completed
                 </p>
 
                 <p className="mt-3 text-3xl font-bold">
-                  <h2>{stats.completed}</h2>
+                  {stats.completed}
                 </p>
+
               </div>
 
               <div className="rounded-xl bg-green-500/10 p-3 text-green-400">
@@ -195,6 +211,7 @@ function Dashboard({ user, onLogout }) {
 
         </section>
 
+
         {/* ================= TASK SECTION ================= */}
 
         <section className="mt-10">
@@ -202,6 +219,7 @@ function Dashboard({ user, onLogout }) {
           <div className="mb-5 flex items-center justify-between">
 
             <div>
+
               <h3 className="text-xl font-bold">
                 My Tasks
               </h3>
@@ -209,58 +227,65 @@ function Dashboard({ user, onLogout }) {
               <p className="mt-1 text-sm text-slate-500">
                 Manage your daily tasks.
               </p>
+
             </div>
+
+
+            {/* Add Task */}
 
             <button
               onClick={() => setShowTaskForm(true)}
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95"
-              >
+            >
               <FiPlus size={18} />
               Add Task
             </button>
 
           </div>
 
-          {/* Empty State */}
 
-          <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-6 text-center">
+          {/* ================= TASK LIST ================= */}
 
-            <div className="mb-4 rounded-2xl bg-blue-500/10 p-5 text-blue-400">
-              <FiCheckSquare size={32} />
-            </div>
-
-            <h4 className="text-lg font-semibold">
-              <TaskList
-                user={user}
-                refreshKey={refreshKey}
-                onStatsChange={setStats}
-              />
-            </h4>
-
-            <p className="mt-2 max-w-sm text-sm text-slate-500">
-              You don't have any tasks right now. Create your first
-              task and start getting things done.
-            </p>
-
-            <button
-              onClick={() => setShowTaskForm(true)}
-              className="mt-6 flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-semibold transition hover:border-blue-500/50 hover:bg-slate-700"
-            >
-              <FiPlus size={17} />
-              Create your first task
-            </button>
-
-          </div>
+          <TaskList
+            user={user}
+            refreshKey={refreshKey}
+            onStatsChange={setStats}
+            onEditTask={(task) => {
+              console.log("EDIT CLICKED:", task);
+              setEditingTask(task);
+            }}
+          />
 
         </section>
 
       </main>
+
+
+      {/* ================= ADD TASK MODAL ================= */}
+
       {showTaskForm && (
         <TaskForm
           user={user}
           onClose={() => setShowTaskForm(false)}
           onTaskCreated={() => {
             setShowTaskForm(false);
+            setRefreshKey((prev) => prev + 1);
+          }}
+        />
+      )}
+
+
+      {/* ================= EDIT TASK MODAL ================= */}
+
+      {editingTask && (
+        <TaskForm
+          user={user}
+          task={editingTask}
+          onClose={() => setEditingTask(null)}
+          onTaskUpdated={(updatedTask) => {
+            console.log("TASK UPDATED:", updatedTask);
+
+            setEditingTask(null);
             setRefreshKey((prev) => prev + 1);
           }}
         />
