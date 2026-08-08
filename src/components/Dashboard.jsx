@@ -1,3 +1,5 @@
+import { useState } from "react";
+import TaskForm from "./TaskForm";
 import {
   FiCheckSquare,
   FiClock,
@@ -9,6 +11,8 @@ import {
 } from "react-icons/fi";
 
 function Dashboard({ user, onLogout }) {
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [tasks, setTasks] = useState([]);
   const userName =
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
@@ -201,8 +205,9 @@ function Dashboard({ user, onLogout }) {
             </div>
 
             <button
+              onClick={() => setShowTaskForm(true)}
               className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95"
-            >
+              >
               <FiPlus size={18} />
               Add Task
             </button>
@@ -227,6 +232,7 @@ function Dashboard({ user, onLogout }) {
             </p>
 
             <button
+              onClick={() => setShowTaskForm(true)}
               className="mt-6 flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 py-3 text-sm font-semibold transition hover:border-blue-500/50 hover:bg-slate-700"
             >
               <FiPlus size={17} />
@@ -238,6 +244,15 @@ function Dashboard({ user, onLogout }) {
         </section>
 
       </main>
+      {showTaskForm && (
+        <TaskForm
+          user={user}
+          onClose={() => setShowTaskForm(false)}
+          onTaskCreated={(newTask) => {
+            setTasks((prevTasks) => [newTask, ...prevTasks]);
+          }}
+        />
+      )}
 
     </div>
   );
