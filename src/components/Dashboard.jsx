@@ -1,5 +1,6 @@
 import { useState } from "react";
 import TaskForm from "./TaskForm";
+import TaskList from "./TaskList";
 import {
   FiCheckSquare,
   FiClock,
@@ -12,7 +13,13 @@ import {
 
 function Dashboard({ user, onLogout }) {
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [tasks, setTasks] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    completed: 0,
+  });
   const userName =
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
@@ -126,7 +133,7 @@ function Dashboard({ user, onLogout }) {
                 </p>
 
                 <p className="mt-3 text-3xl font-bold">
-                  0
+                  <h2>{stats.total}</h2>
                 </p>
               </div>
 
@@ -150,7 +157,7 @@ function Dashboard({ user, onLogout }) {
                 </p>
 
                 <p className="mt-3 text-3xl font-bold">
-                  0
+                  <h2>{stats.active}</h2>
                 </p>
               </div>
 
@@ -174,7 +181,7 @@ function Dashboard({ user, onLogout }) {
                 </p>
 
                 <p className="mt-3 text-3xl font-bold">
-                  0
+                  <h2>{stats.completed}</h2>
                 </p>
               </div>
 
@@ -223,7 +230,11 @@ function Dashboard({ user, onLogout }) {
             </div>
 
             <h4 className="text-lg font-semibold">
-              No tasks yet
+              <TaskList
+                user={user}
+                refreshKey={refreshKey}
+                onStatsChange={setStats}
+              />
             </h4>
 
             <p className="mt-2 max-w-sm text-sm text-slate-500">
@@ -248,8 +259,9 @@ function Dashboard({ user, onLogout }) {
         <TaskForm
           user={user}
           onClose={() => setShowTaskForm(false)}
-          onTaskCreated={(newTask) => {
-            setTasks((prevTasks) => [newTask, ...prevTasks]);
+          onTaskCreated={() => {
+            setShowTaskForm(false);
+            setRefreshKey((prev) => prev + 1);
           }}
         />
       )}
