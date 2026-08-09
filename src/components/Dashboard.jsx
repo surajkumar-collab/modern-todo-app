@@ -251,7 +251,6 @@ function Dashboard({ user, onLogout }) {
             refreshKey={refreshKey}
             onStatsChange={setStats}
             onEditTask={(task) => {
-              console.log("EDIT CLICKED:", task);
               setEditingTask(task);
             }}
           />

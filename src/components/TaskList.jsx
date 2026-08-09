@@ -4,6 +4,7 @@ import {
   FiClock,
   FiTrash2,
   FiEdit3,
+  FiSearch,
 } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 
@@ -16,13 +17,18 @@ function TaskList({
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ================= FILTER STATES =================
+
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
+
   // ================= FETCH TASKS =================
 
   const fetchTasks = async () => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
+    if (!user?.id) return;
 
     setLoading(true);
 
@@ -41,7 +47,8 @@ function TaskList({
 
       setTasks(taskData);
 
-      // Update dashboard stats
+      // ================= STATS =================
+
       if (onStatsChange) {
         const total = taskData.length;
 
@@ -64,14 +71,11 @@ function TaskList({
     }
   };
 
-  // Fetch whenever user or refreshKey changes
-
   useEffect(() => {
     fetchTasks();
   }, [user?.id, refreshKey]);
 
-
-  // ================= COMPLETE TASK =================
+  // ================= TOGGLE TASK =================
 
   const toggleTask = async (task) => {
     try {
@@ -90,21 +94,18 @@ function TaskList({
         throw error;
       }
 
-      // Update UI immediately
       setTasks((prevTasks) =>
         prevTasks.map((item) =>
           item.id === task.id ? data : item
         )
       );
 
-      // Update stats
+      // Refresh stats
       fetchTasks();
-
     } catch (error) {
       console.error("Update task error:", error);
     }
   };
-
 
   // ================= DELETE TASK =================
 
@@ -120,27 +121,90 @@ function TaskList({
         throw error;
       }
 
-      // Remove immediately from UI
       setTasks((prevTasks) =>
-        prevTasks.filter(
-          (task) => task.id !== taskId
-        )
+        prevTasks.filter((task) => task.id !== taskId)
       );
 
-      // Update stats
+      // Refresh stats
       fetchTasks();
-
     } catch (error) {
       console.error("Delete task error:", error);
     }
   };
 
+  // ================= FILTER + SORT =================
+
+  const filteredTasks = tasks
+    .filter((task) => {
+      // Search
+      const search = searchTerm.toLowerCase().trim();
+
+      const matchesSearch =
+        task.title?.toLowerCase().includes(search) ||
+        task.description?.toLowerCase().includes(search);
+
+      // Status
+      const matchesStatus =
+        statusFilter === "all" ||
+        (statusFilter === "active" && !task.completed) ||
+        (statusFilter === "completed" && task.completed);
+
+      // Category
+      const matchesCategory =
+        categoryFilter === "all" ||
+        task.category === categoryFilter;
+
+      // Priority
+      const matchesPriority =
+        priorityFilter === "all" ||
+        task.priority === priorityFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesCategory &&
+        matchesPriority
+      );
+    })
+    .sort((a, b) => {
+      // Newest
+      if (sortBy === "newest") {
+        return (
+          new Date(b.created_at) -
+          new Date(a.created_at)
+        );
+      }
+
+      // Oldest
+      if (sortBy === "oldest") {
+        return (
+          new Date(a.created_at) -
+          new Date(b.created_at)
+        );
+      }
+
+      // Priority
+      if (sortBy === "priority") {
+        const priorityOrder = {
+          high: 1,
+          medium: 2,
+          low: 3,
+        };
+
+        return (
+          priorityOrder[a.priority] -
+          priorityOrder[b.priority]
+        );
+      }
+
+      return 0;
+    });
 
   // ================= LOADING =================
 
   if (loading) {
     return (
-      <div className="flex min-h-[250px] items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/30">
+      <div className="flex min-h-[250px] items-center justify-center">
         <p className="text-sm text-slate-500">
           Loading tasks...
         </p>
@@ -148,166 +212,317 @@ function TaskList({
     );
   }
 
-
-  // ================= EMPTY STATE =================
-
-  if (tasks.length === 0) {
-    return (
-      <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-6 text-center">
-
-        <div className="mb-4 rounded-2xl bg-blue-500/10 p-5 text-blue-400">
-          <FiCheckSquare size={32} />
-        </div>
-
-        <h4 className="text-lg font-semibold text-white">
-          No tasks yet
-        </h4>
-
-        <p className="mt-2 max-w-sm text-sm text-slate-500">
-          Create your first task and start getting things done.
-        </p>
-
-      </div>
-    );
-  }
-
-
-  // ================= TASK LIST =================
+  // ================= MAIN UI =================
 
   return (
-    <div className="space-y-4">
+    <div className="w-full">
 
-      {tasks.map((task) => (
-        <div
-          key={task.id}
-          className={`group rounded-2xl border p-5 transition ${
-            task.completed
-              ? "border-green-500/20 bg-green-500/5"
-              : "border-slate-800 bg-slate-900/60 hover:border-blue-500/30"
-          }`}
+      {/* ================= SEARCH + FILTERS ================= */}
+
+      <div className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+
+        {/* Search */}
+
+        <div className="relative lg:col-span-2">
+
+          <FiSearch
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+          />
+
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) =>
+              setSearchTerm(e.target.value)
+            }
+            placeholder="Search tasks..."
+            className="w-full rounded-xl border border-slate-800 bg-slate-900/70 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500"
+          />
+
+        </div>
+
+        {/* Status */}
+
+        <select
+          value={statusFilter}
+          onChange={(e) =>
+            setStatusFilter(e.target.value)
+          }
+          className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500"
         >
+          <option value="all">All Tasks</option>
+          <option value="active">Active</option>
+          <option value="completed">Completed</option>
+        </select>
 
-          <div className="flex items-start gap-4">
+        {/* Category */}
 
-            {/* ================= CHECKBOX ================= */}
+        <select
+          value={categoryFilter}
+          onChange={(e) =>
+            setCategoryFilter(e.target.value)
+          }
+          className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500"
+        >
+          <option value="all">All Categories</option>
+          <option value="General">General</option>
+          <option value="Work">Work</option>
+          <option value="Study">Study</option>
+          <option value="Personal">Personal</option>
+          <option value="Health">Health</option>
+        </select>
 
-            <button
-              type="button"
-              onClick={() => toggleTask(task)}
-              className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+      </div>
+
+      {/* ================= SECOND FILTER ROW ================= */}
+
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+
+        <div className="flex items-center gap-2">
+
+          <span className="text-sm text-slate-500">
+            {filteredTasks.length}{" "}
+            {filteredTasks.length === 1
+              ? "task"
+              : "tasks"}
+          </span>
+
+        </div>
+
+        <div className="flex items-center gap-3">
+
+          {/* Priority */}
+
+          <select
+            value={priorityFilter}
+            onChange={(e) =>
+              setPriorityFilter(e.target.value)
+            }
+            className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500"
+          >
+            <option value="all">
+              All Priorities
+            </option>
+
+            <option value="high">
+              High Priority
+            </option>
+
+            <option value="medium">
+              Medium Priority
+            </option>
+
+            <option value="low">
+              Low Priority
+            </option>
+          </select>
+
+          {/* Sort */}
+
+          <select
+            value={sortBy}
+            onChange={(e) =>
+              setSortBy(e.target.value)
+            }
+            className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500"
+          >
+            <option value="newest">
+              Newest First
+            </option>
+
+            <option value="oldest">
+              Oldest First
+            </option>
+
+            <option value="priority">
+              Priority
+            </option>
+          </select>
+
+        </div>
+
+      </div>
+
+      {/* ================= NO TASKS ================= */}
+
+      {tasks.length === 0 && (
+        <div className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-6 text-center">
+
+          <div className="mb-4 rounded-2xl bg-blue-500/10 p-5 text-blue-400">
+            <FiCheckSquare size={32} />
+          </div>
+
+          <h4 className="text-lg font-semibold text-white">
+            No tasks yet
+          </h4>
+
+          <p className="mt-2 max-w-sm text-sm text-slate-500">
+            Create your first task and start getting
+            things done.
+          </p>
+
+        </div>
+      )}
+
+      {/* ================= NO SEARCH RESULTS ================= */}
+
+      {tasks.length > 0 &&
+        filteredTasks.length === 0 && (
+          <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-6 text-center">
+
+            <div className="mb-4 rounded-2xl bg-slate-800 p-5 text-slate-400">
+              <FiSearch size={30} />
+            </div>
+
+            <h4 className="text-lg font-semibold text-white">
+              No matching tasks
+            </h4>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Try changing your search or filters.
+            </p>
+
+          </div>
+        )}
+
+      {/* ================= TASK LIST ================= */}
+
+      {filteredTasks.length > 0 && (
+        <div className="space-y-4">
+
+          {filteredTasks.map((task) => (
+
+            <div
+              key={task.id}
+              className={`group rounded-2xl border p-5 transition ${
                 task.completed
-                  ? "border-green-500 bg-green-500 text-white"
-                  : "border-slate-600 hover:border-blue-500"
+                  ? "border-green-500/20 bg-green-500/5"
+                  : "border-slate-800 bg-slate-900/60 hover:border-blue-500/30"
               }`}
-              title={
-                task.completed
-                  ? "Mark as active"
-                  : "Mark as completed"
-              }
             >
-              {task.completed && (
-                <FiCheckSquare size={16} />
-              )}
-            </button>
 
+              <div className="flex items-start gap-4">
 
-            {/* ================= CONTENT ================= */}
+                {/* ================= CHECKBOX ================= */}
 
-            <div className="min-w-0 flex-1">
-
-              <div className="flex flex-wrap items-center gap-2">
-
-                {/* Title */}
-
-                <h4
-                  className={`text-base font-semibold ${
+                <button
+                  type="button"
+                  onClick={() => toggleTask(task)}
+                  className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
                     task.completed
-                      ? "text-slate-500 line-through"
-                      : "text-white"
+                      ? "border-green-500 bg-green-500 text-white"
+                      : "border-slate-600 hover:border-blue-500"
                   }`}
+                  title={
+                    task.completed
+                      ? "Mark as active"
+                      : "Mark as completed"
+                  }
                 >
-                  {task.title}
-                </h4>
+                  {task.completed && (
+                    <FiCheckSquare size={16} />
+                  )}
+                </button>
 
+                {/* ================= CONTENT ================= */}
 
-                {/* Priority */}
+                <div className="min-w-0 flex-1">
 
-                <span
-                  className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    task.priority === "high"
-                      ? "bg-red-500/10 text-red-400"
-                      : task.priority === "medium"
-                      ? "bg-yellow-500/10 text-yellow-400"
-                      : "bg-green-500/10 text-green-400"
-                  }`}
+                  {/* Title + badges */}
+
+                  <div className="flex flex-wrap items-center gap-2">
+
+                    <h4
+                      className={`text-base font-semibold ${
+                        task.completed
+                          ? "text-slate-500 line-through"
+                          : "text-white"
+                      }`}
+                    >
+                      {task.title}
+                    </h4>
+
+                    {/* Priority */}
+
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        task.priority === "high"
+                          ? "bg-red-500/10 text-red-400"
+                          : task.priority === "medium"
+                          ? "bg-yellow-500/10 text-yellow-400"
+                          : "bg-green-500/10 text-green-400"
+                      }`}
+                    >
+                      {task.priority}
+                    </span>
+
+                    {/* Category */}
+
+                    <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400">
+                      {task.category}
+                    </span>
+
+                  </div>
+
+                  {/* Description */}
+
+                  {task.description && (
+                    <p className="mt-2 text-sm text-slate-400">
+                      {task.description}
+                    </p>
+                  )}
+
+                  {/* Due Date */}
+
+                  {task.due_date && (
+                    <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                      <FiClock size={14} />
+                      Due: {task.due_date}
+                    </div>
+                  )}
+
+                </div>
+
+                {/* ================= EDIT ================= */}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    console.log(
+                      "Edit button clicked:",
+                      task
+                    );
+
+                    if (onEditTask) {
+                      onEditTask(task);
+                    }
+                  }}
+                  className="rounded-lg p-2 text-slate-400 transition hover:bg-blue-500/10 hover:text-blue-400"
+                  title="Edit task"
                 >
-                  {task.priority}
-                </span>
+                  <FiEdit3 size={18} />
+                </button>
 
+                {/* ================= DELETE ================= */}
 
-                {/* Category */}
-
-                <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400">
-                  {task.category}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => deleteTask(task.id)}
+                  className="rounded-lg p-2 text-slate-600 opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+                  title="Delete task"
+                >
+                  <FiTrash2 size={18} />
+                </button>
 
               </div>
 
-
-              {/* Description */}
-
-              {task.description && (
-                <p className="mt-2 text-sm text-slate-400">
-                  {task.description}
-                </p>
-              )}
-
-
-              {/* Due Date */}
-
-              {task.due_date && (
-                <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-                  <FiClock size={14} />
-                  Due: {task.due_date}
-                </div>
-              )}
-
             </div>
 
-
-            {/* ================= EDIT ================= */}
-
-            <button
-              type="button"
-              onClick={() => {
-                console.log("EDIT BUTTON CLICKED:", task);
-
-                if (onEditTask) {
-                  onEditTask(task);
-                }
-              }}
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-blue-500/10 hover:text-blue-400"
-              title="Edit task"
-            >
-              <FiEdit3 size={18} />
-            </button>
-
-
-            {/* ================= DELETE ================= */}
-
-            <button
-              type="button"
-              onClick={() => deleteTask(task.id)}
-              className="rounded-lg p-2 text-slate-600 opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
-              title="Delete task"
-            >
-              <FiTrash2 size={18} />
-            </button>
-
-          </div>
+          ))}
 
         </div>
-      ))}
+      )}
 
     </div>
   );
