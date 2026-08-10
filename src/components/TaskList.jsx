@@ -204,6 +204,67 @@ function TaskList({
     }
   };
 
+  const getDueDateStatus = (task) => {
+    if (!task.due_date || task.completed) {
+      return null;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const dueDate = new Date(`${task.due_date}T00:00:00`);
+    dueDate.setHours(0, 0, 0, 0);
+
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.round(
+      diffTime / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffDays < 0) {
+      return {
+        label: "Overdue",
+        className: "text-red-400",
+      };
+    }
+
+    if (diffDays === 0) {
+      return {
+        label: "Due Today",
+        className: "text-yellow-400",
+      };
+    }
+
+    if (diffDays === 1) {
+      return {
+        label: "Due Tomorrow",
+        className: "text-blue-400",
+      };
+    }
+
+    return {
+      label: "Upcoming",
+      className: "text-slate-500",
+    };
+  };
+
+  const formatDueDate = (dateString) => {
+    if (!dateString) return "";
+
+    const [year, month, day] = dateString.split("-");
+
+    const date = new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+    );
+
+    return date.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
   // =========================
   // FILTER + SORT
   // =========================
@@ -580,12 +641,25 @@ function TaskList({
                   {/* DUE DATE */}
 
                   {task.due_date && (
-                    <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+                    <div 
+                      className={`mt-3 flex items-center gap-2 text-xs ${
+                        getDueDateStatus(task)?.className || "text-slate-500"
+                      }`}
+                    >
                       <FiClock size={14} />
-                      Due: {task.due_date}
+
+                      <span className="font-medium">
+                        {getDueDateStatus(task)?.label}
+                      </span>
+
+                      <span className="text-slate-600">•</span>
+
+                      <span>
+                        Due: {formatDueDate(task.due_date)}
+                      </span>
+                      
                     </div>
                   )}
-
                 </div>
 
                 {/* EDIT */}
