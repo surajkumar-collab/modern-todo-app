@@ -13,6 +13,7 @@ function TaskList({
   refreshKey = 0,
   onStatsChange,
   onEditTask,
+  searchQuery = "",
 }) {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -23,8 +24,6 @@ function TaskList({
   // =========================
   // FILTER STATES
   // =========================
-
-  const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
@@ -212,7 +211,7 @@ function TaskList({
   const filteredTasks = tasks
     .filter((task) => {
       const search =
-        searchTerm.toLowerCase().trim();
+        searchQuery.toLowerCase().trim();
 
       // Search
       const matchesSearch =
@@ -319,27 +318,6 @@ function TaskList({
       {/* ================================================= */}
 
       <div className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-
-        {/* SEARCH */}
-
-        <div className="relative lg:col-span-2">
-
-          <FiSearch
-            size={18}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
-          />
-
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) =>
-              setSearchTerm(e.target.value)
-            }
-            placeholder="Search tasks..."
-            className="w-full rounded-xl border border-slate-800 bg-slate-900/70 py-3 pl-11 pr-4 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500"
-          />
-
-        </div>
 
         {/* STATUS */}
 

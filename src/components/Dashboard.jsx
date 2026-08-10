@@ -25,6 +25,8 @@ function Dashboard({ user, onLogout }) {
 
   const [editingTask, setEditingTask] = useState(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -83,6 +85,8 @@ function Dashboard({ user, onLogout }) {
 
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tasks..."
               className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none"
             />
@@ -323,6 +327,7 @@ function Dashboard({ user, onLogout }) {
           <TaskList
             user={user}
             refreshKey={refreshKey}
+            searchQuery={searchQuery}
             onStatsChange={setStats}
             onEditTask={(task) => {
               console.log("EDIT CLICKED:", task);
