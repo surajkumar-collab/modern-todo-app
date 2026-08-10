@@ -15,9 +15,14 @@ function TaskList({
   onEditTask,
 }) {
   const [tasks, setTasks] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] =
+    useState(true);
 
-  // ================= FILTER STATES =================
+  // =========================
+  // FILTER STATES
+  // =========================
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -25,10 +30,15 @@ function TaskList({
   const [priorityFilter, setPriorityFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
 
-  // ================= FETCH TASKS =================
+  // =========================
+  // FETCH TASKS
+  // =========================
 
   const fetchTasks = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
 
@@ -37,7 +47,9 @@ function TaskList({
         .from("tasks")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", {
+          ascending: false,
+        });
 
       if (error) {
         throw error;
@@ -47,7 +59,9 @@ function TaskList({
 
       setTasks(taskData);
 
-      // ================= STATS =================
+      // =========================
+      // STATS
+      // =========================
 
       if (onStatsChange) {
         const total = taskData.length;
@@ -65,17 +79,67 @@ function TaskList({
         });
       }
     } catch (error) {
-      console.error("Fetch tasks error:", error);
+      console.error(
+        "Fetch tasks error:",
+        error
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // =========================
+  // FETCH CATEGORIES
+  // =========================
+
+  const fetchCategories = async () => {
+    if (!user?.id) {
+      setCategoriesLoading(false);
+      return;
+    }
+
+    setCategoriesLoading(true);
+
+    try {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", {
+          ascending: true,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      const categoryData = data || [];
+
+      setCategories(categoryData);
+    } catch (error) {
+      console.error(
+        "Fetch categories error:",
+        error
+      );
+
+      setCategories([]);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  // =========================
+  // LOAD DATA
+  // =========================
+
   useEffect(() => {
     fetchTasks();
+    fetchCategories();
   }, [user?.id, refreshKey]);
 
-  // ================= TOGGLE TASK =================
+  // =========================
+  // TOGGLE TASK
+  // =========================
 
   const toggleTask = async (task) => {
     try {
@@ -83,7 +147,8 @@ function TaskList({
         .from("tasks")
         .update({
           completed: !task.completed,
-          updated_at: new Date().toISOString(),
+          updated_at:
+            new Date().toISOString(),
         })
         .eq("id", task.id)
         .eq("user_id", user.id)
@@ -100,14 +165,18 @@ function TaskList({
         )
       );
 
-      // Refresh stats
       fetchTasks();
     } catch (error) {
-      console.error("Update task error:", error);
+      console.error(
+        "Update task error:",
+        error
+      );
     }
   };
 
-  // ================= DELETE TASK =================
+  // =========================
+  // DELETE TASK
+  // =========================
 
   const deleteTask = async (taskId) => {
     try {
@@ -122,32 +191,45 @@ function TaskList({
       }
 
       setTasks((prevTasks) =>
-        prevTasks.filter((task) => task.id !== taskId)
+        prevTasks.filter(
+          (task) => task.id !== taskId
+        )
       );
 
-      // Refresh stats
       fetchTasks();
     } catch (error) {
-      console.error("Delete task error:", error);
+      console.error(
+        "Delete task error:",
+        error
+      );
     }
   };
 
-  // ================= FILTER + SORT =================
+  // =========================
+  // FILTER + SORT
+  // =========================
 
   const filteredTasks = tasks
     .filter((task) => {
-      // Search
-      const search = searchTerm.toLowerCase().trim();
+      const search =
+        searchTerm.toLowerCase().trim();
 
+      // Search
       const matchesSearch =
-        task.title?.toLowerCase().includes(search) ||
-        task.description?.toLowerCase().includes(search);
+        task.title
+          ?.toLowerCase()
+          .includes(search) ||
+        task.description
+          ?.toLowerCase()
+          .includes(search);
 
       // Status
       const matchesStatus =
         statusFilter === "all" ||
-        (statusFilter === "active" && !task.completed) ||
-        (statusFilter === "completed" && task.completed);
+        (statusFilter === "active" &&
+          !task.completed) ||
+        (statusFilter === "completed" &&
+          task.completed);
 
       // Category
       const matchesCategory =
@@ -197,10 +279,23 @@ function TaskList({
         );
       }
 
+      // Due date
+      if (sortBy === "dueDate") {
+        if (!a.due_date) return 1;
+        if (!b.due_date) return -1;
+
+        return (
+          new Date(a.due_date) -
+          new Date(b.due_date)
+        );
+      }
+
       return 0;
     });
 
-  // ================= LOADING =================
+  // =========================
+  // LOADING
+  // =========================
 
   if (loading) {
     return (
@@ -212,16 +307,20 @@ function TaskList({
     );
   }
 
-  // ================= MAIN UI =================
+  // =========================
+  // UI
+  // =========================
 
   return (
     <div className="w-full">
 
-      {/* ================= SEARCH + FILTERS ================= */}
+      {/* ================================================= */}
+      {/* SEARCH + STATUS */}
+      {/* ================================================= */}
 
       <div className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
 
-        {/* Search */}
+        {/* SEARCH */}
 
         <div className="relative lg:col-span-2">
 
@@ -242,7 +341,7 @@ function TaskList({
 
         </div>
 
-        {/* Status */}
+        {/* STATUS */}
 
         <select
           value={statusFilter}
@@ -251,48 +350,63 @@ function TaskList({
           }
           className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500"
         >
-          <option value="all">All Tasks</option>
-          <option value="active">Active</option>
-          <option value="completed">Completed</option>
+          <option value="all">
+            All Tasks
+          </option>
+
+          <option value="active">
+            Active
+          </option>
+
+          <option value="completed">
+            Completed
+          </option>
         </select>
 
-        {/* Category */}
+        {/* CATEGORY */}
 
         <select
           value={categoryFilter}
           onChange={(e) =>
             setCategoryFilter(e.target.value)
           }
-          className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500"
+          disabled={categoriesLoading}
+          className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-500 disabled:opacity-60"
         >
-          <option value="all">All Categories</option>
-          <option value="General">General</option>
-          <option value="Work">Work</option>
-          <option value="Study">Study</option>
-          <option value="Personal">Personal</option>
-          <option value="Health">Health</option>
+          <option value="all">
+            All Categories
+          </option>
+
+          {categories.map((category) => (
+            <option
+              key={category.id}
+              value={category.name}
+            >
+              {category.name}
+            </option>
+          ))}
         </select>
 
       </div>
 
-      {/* ================= SECOND FILTER ROW ================= */}
+      {/* ================================================= */}
+      {/* FILTER BAR */}
+      {/* ================================================= */}
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
 
-        <div className="flex items-center gap-2">
+        {/* RESULT COUNT */}
 
-          <span className="text-sm text-slate-500">
-            {filteredTasks.length}{" "}
-            {filteredTasks.length === 1
-              ? "task"
-              : "tasks"}
-          </span>
+        <span className="text-sm text-slate-500">
+          {filteredTasks.length}{" "}
+          {filteredTasks.length === 1
+            ? "task"
+            : "tasks"}
+        </span>
 
-        </div>
+        <div className="flex flex-wrap items-center gap-3">
 
-        <div className="flex items-center gap-3">
-
-          {/* Priority */}
+          {/* PRIORITY */}
 
           <select
             value={priorityFilter}
@@ -318,7 +432,7 @@ function TaskList({
             </option>
           </select>
 
-          {/* Sort */}
+          {/* SORT */}
 
           <select
             value={sortBy}
@@ -338,13 +452,19 @@ function TaskList({
             <option value="priority">
               Priority
             </option>
+
+            <option value="dueDate">
+              Due Date
+            </option>
           </select>
 
         </div>
 
       </div>
 
-      {/* ================= NO TASKS ================= */}
+      {/* ================================================= */}
+      {/* NO TASKS */}
+      {/* ================================================= */}
 
       {tasks.length === 0 && (
         <div className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-6 text-center">
@@ -358,14 +478,16 @@ function TaskList({
           </h4>
 
           <p className="mt-2 max-w-sm text-sm text-slate-500">
-            Create your first task and start getting
-            things done.
+            Create your first task and start
+            getting things done.
           </p>
 
         </div>
       )}
 
-      {/* ================= NO SEARCH RESULTS ================= */}
+      {/* ================================================= */}
+      {/* NO RESULTS */}
+      {/* ================================================= */}
 
       {tasks.length > 0 &&
         filteredTasks.length === 0 && (
@@ -386,7 +508,9 @@ function TaskList({
           </div>
         )}
 
-      {/* ================= TASK LIST ================= */}
+      {/* ================================================= */}
+      {/* TASKS */}
+      {/* ================================================= */}
 
       {filteredTasks.length > 0 && (
         <div className="space-y-4">
@@ -404,11 +528,13 @@ function TaskList({
 
               <div className="flex items-start gap-4">
 
-                {/* ================= CHECKBOX ================= */}
+                {/* CHECKBOX */}
 
                 <button
                   type="button"
-                  onClick={() => toggleTask(task)}
+                  onClick={() =>
+                    toggleTask(task)
+                  }
                   className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
                     task.completed
                       ? "border-green-500 bg-green-500 text-white"
@@ -425,13 +551,13 @@ function TaskList({
                   )}
                 </button>
 
-                {/* ================= CONTENT ================= */}
+                {/* CONTENT */}
 
                 <div className="min-w-0 flex-1">
 
-                  {/* Title + badges */}
-
                   <div className="flex flex-wrap items-center gap-2">
+
+                    {/* TITLE */}
 
                     <h4
                       className={`text-base font-semibold ${
@@ -443,7 +569,7 @@ function TaskList({
                       {task.title}
                     </h4>
 
-                    {/* Priority */}
+                    {/* PRIORITY */}
 
                     <span
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -457,7 +583,7 @@ function TaskList({
                       {task.priority}
                     </span>
 
-                    {/* Category */}
+                    {/* CATEGORY */}
 
                     <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400">
                       {task.category}
@@ -465,7 +591,7 @@ function TaskList({
 
                   </div>
 
-                  {/* Description */}
+                  {/* DESCRIPTION */}
 
                   {task.description && (
                     <p className="mt-2 text-sm text-slate-400">
@@ -473,7 +599,7 @@ function TaskList({
                     </p>
                   )}
 
-                  {/* Due Date */}
+                  {/* DUE DATE */}
 
                   {task.due_date && (
                     <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
@@ -484,7 +610,7 @@ function TaskList({
 
                 </div>
 
-                {/* ================= EDIT ================= */}
+                {/* EDIT */}
 
                 <button
                   type="button"
@@ -504,11 +630,13 @@ function TaskList({
                   <FiEdit3 size={18} />
                 </button>
 
-                {/* ================= DELETE ================= */}
+                {/* DELETE */}
 
                 <button
                   type="button"
-                  onClick={() => deleteTask(task.id)}
+                  onClick={() =>
+                    deleteTask(task.id)
+                  }
                   className="rounded-lg p-2 text-slate-600 opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
                   title="Delete task"
                 >
