@@ -2,30 +2,34 @@ import { useState } from "react";
 import TaskForm from "./TaskForm";
 import TaskList from "./TaskList";
 import CategoryManager from "./CategoryManager";
+import Navbar from "./Navbar";
 
 import {
   FiCheckSquare,
   FiClock,
   FiCheckCircle,
   FiPlus,
-  FiLogOut,
-  FiMenu,
-  FiSearch,
 } from "react-icons/fi";
 
 function Dashboard({ user, onLogout }) {
-  // ================= STATES =================
+  // =========================
+  // STATES
+  // =========================
 
-  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showTaskForm, setShowTaskForm] =
+    useState(false);
 
   const [showCategoryManager, setShowCategoryManager] =
     useState(false);
 
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] =
+    useState(0);
 
-  const [editingTask, setEditingTask] = useState(null);
+  const [editingTask, setEditingTask] =
+    useState(null);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
   const [stats, setStats] = useState({
     total: 0,
@@ -33,120 +37,42 @@ function Dashboard({ user, onLogout }) {
     completed: 0,
   });
 
-  // ================= USER NAME =================
+  // =========================
+  // USER NAME
+  // =========================
 
   const userName =
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "User";
 
-  // ================= RENDER =================
+  // =========================
+  // RENDER
+  // =========================
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
 
-      {/* ================================================== */}
-      {/* HEADER */}
-      {/* ================================================== */}
+      {/* ========================= */}
+      {/* NAVBAR */}
+      {/* ========================= */}
 
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-xl">
+      <Navbar
+        user={user}
+        onLogout={onLogout}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+      />
 
-        <div className="flex h-20 items-center justify-between px-6 lg:px-10">
-
-          {/* ================= LOGO ================= */}
-
-          <div className="flex items-center gap-3">
-
-            <button
-              type="button"
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white lg:hidden"
-            >
-              <FiMenu size={22} />
-            </button>
-
-            <h1 className="text-2xl font-extrabold tracking-tight">
-
-              Task
-
-              <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                Flow
-              </span>
-
-            </h1>
-
-          </div>
-
-
-          {/* ================= SEARCH ================= */}
-
-          <div className="hidden w-full max-w-md items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 md:flex">
-
-            <FiSearch className="text-slate-500" />
-
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search tasks..."
-              className="w-full bg-transparent text-sm text-white placeholder:text-slate-500 outline-none"
-            />
-
-          </div>
-
-
-          {/* ================= USER ================= */}
-
-          <div className="flex items-center gap-4">
-
-            <div className="hidden text-right sm:block">
-
-              <p className="text-sm font-medium text-white">
-                {userName}
-              </p>
-
-              <p className="text-xs text-slate-500">
-                {user?.email}
-              </p>
-
-            </div>
-
-
-            {/* Avatar */}
-
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 font-bold text-white">
-
-              {userName.charAt(0).toUpperCase()}
-
-            </div>
-
-
-            {/* Logout */}
-
-            <button
-              type="button"
-              onClick={onLogout}
-              title="Logout"
-              className="rounded-xl p-2.5 text-slate-400 transition hover:bg-red-500/10 hover:text-red-400"
-            >
-
-              <FiLogOut size={20} />
-
-            </button>
-
-          </div>
-
-        </div>
-
-      </header>
-
-
-      {/* ================================================== */}
+      {/* ========================= */}
       {/* MAIN */}
-      {/* ================================================== */}
+      {/* ========================= */}
 
       <main className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
 
-        {/* ================= WELCOME ================= */}
+        {/* ========================= */}
+        {/* WELCOME */}
+        {/* ========================= */}
 
         <section className="mb-10">
 
@@ -164,14 +90,13 @@ function Dashboard({ user, onLogout }) {
 
         </section>
 
-
-        {/* ================================================== */}
+        {/* ========================= */}
         {/* STATS */}
-        {/* ================================================== */}
+        {/* ========================= */}
 
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 
-          {/* ================= TOTAL ================= */}
+          {/* TOTAL */}
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-blue-500/30">
 
@@ -190,17 +115,14 @@ function Dashboard({ user, onLogout }) {
               </div>
 
               <div className="rounded-xl bg-blue-500/10 p-3 text-blue-400">
-
                 <FiCheckSquare size={24} />
-
               </div>
 
             </div>
 
           </div>
 
-
-          {/* ================= ACTIVE ================= */}
+          {/* ACTIVE */}
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-yellow-500/30">
 
@@ -219,17 +141,14 @@ function Dashboard({ user, onLogout }) {
               </div>
 
               <div className="rounded-xl bg-yellow-500/10 p-3 text-yellow-400">
-
                 <FiClock size={24} />
-
               </div>
 
             </div>
 
           </div>
 
-
-          {/* ================= COMPLETED ================= */}
+          {/* COMPLETED */}
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-green-500/30">
 
@@ -248,9 +167,7 @@ function Dashboard({ user, onLogout }) {
               </div>
 
               <div className="rounded-xl bg-green-500/10 p-3 text-green-400">
-
                 <FiCheckCircle size={24} />
-
               </div>
 
             </div>
@@ -259,14 +176,13 @@ function Dashboard({ user, onLogout }) {
 
         </section>
 
-
-        {/* ================================================== */}
+        {/* ========================= */}
         {/* TASK SECTION */}
-        {/* ================================================== */}
+        {/* ========================= */}
 
         <section className="mt-10">
 
-          {/* ================= TASK HEADER ================= */}
+          {/* TASK HEADER */}
 
           <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
@@ -282,24 +198,23 @@ function Dashboard({ user, onLogout }) {
 
             </div>
 
-
             {/* ACTION BUTTONS */}
 
             <div className="flex flex-wrap items-center gap-3">
 
-              {/* Category Manager */}
+              {/* CATEGORY MANAGER */}
 
               <button
                 type="button"
                 onClick={() =>
-                  setShowCategoryManager(true)}
+                  setShowCategoryManager(true)
+                }
                 className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white"
               >
                 Manage Categories
               </button>
 
-
-              {/* Add Task */}
+              {/* ADD TASK */}
 
               <button
                 type="button"
@@ -308,21 +223,17 @@ function Dashboard({ user, onLogout }) {
                 }
                 className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95"
               >
-
                 <FiPlus size={18} />
-
                 Add Task
-
               </button>
 
             </div>
 
           </div>
 
-
-          {/* ================================================== */}
+          {/* ========================= */}
           {/* TASK LIST */}
-          {/* ================================================== */}
+          {/* ========================= */}
 
           <TaskList
             user={user}
@@ -330,8 +241,6 @@ function Dashboard({ user, onLogout }) {
             searchQuery={searchQuery}
             onStatsChange={setStats}
             onEditTask={(task) => {
-              console.log("EDIT CLICKED:", task);
-
               setEditingTask(task);
             }}
           />
@@ -340,22 +249,17 @@ function Dashboard({ user, onLogout }) {
 
       </main>
 
-
-      {/* ================================================== */}
+      {/* ========================= */}
       {/* ADD TASK MODAL */}
-      {/* ================================================== */}
+      {/* ========================= */}
 
       {showTaskForm && (
-
         <TaskForm
           user={user}
-
           onClose={() =>
             setShowTaskForm(false)
           }
-
           onTaskCreated={(newTask) => {
-
             console.log(
               "TASK CREATED:",
               newTask
@@ -366,30 +270,22 @@ function Dashboard({ user, onLogout }) {
             setRefreshKey(
               (prev) => prev + 1
             );
-
           }}
         />
-
       )}
 
-
-      {/* ================================================== */}
+      {/* ========================= */}
       {/* EDIT TASK MODAL */}
-      {/* ================================================== */}
+      {/* ========================= */}
 
       {editingTask && (
-
         <TaskForm
           user={user}
-
           task={editingTask}
-
           onClose={() =>
             setEditingTask(null)
           }
-
           onTaskUpdated={(updatedTask) => {
-
             console.log(
               "TASK UPDATED:",
               updatedTask
@@ -400,23 +296,23 @@ function Dashboard({ user, onLogout }) {
             setRefreshKey(
               (prev) => prev + 1
             );
-
           }}
         />
-
       )}
 
-
-      {/* ================================================== */}
-      {/* CATEGORY MANAGER MODAL */}
-      {/* ================================================== */}
+      {/* ========================= */}
+      {/* CATEGORY MANAGER */}
+      {/* ========================= */}
 
       {showCategoryManager && (
         <CategoryManager
           user={user}
           onClose={() => {
             setShowCategoryManager(false);
-            setRefreshKey((prev) => prev + 1);
+
+            setRefreshKey(
+              (prev) => prev + 1
+            );
           }}
         />
       )}
