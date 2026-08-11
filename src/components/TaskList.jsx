@@ -6,6 +6,7 @@ import {
 import { supabase } from "../supabaseClient";
 import TaskItem from "./TaskItem";
 import FilterBar from "./FilterBar";
+import EmptyState from "./EmptyState";
 
 function TaskList({
   user,
