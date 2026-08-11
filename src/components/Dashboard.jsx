@@ -412,15 +412,13 @@ function Dashboard({ user, onLogout }) {
       {/* ================================================== */}
 
       {showCategoryManager && (
-
         <CategoryManager
           user={user}
-
-          onClose={() =>
-            setShowCategoryManager(false)
-          }
+          onClose={() => {
+            setShowCategoryManager(false);
+            setRefreshKey((prev) => prev + 1);
+          }}
         />
-
       )}
 
     </div>
