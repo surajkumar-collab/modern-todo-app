@@ -1,42 +1,71 @@
 import { useState } from "react";
+
 import TaskForm from "./TaskForm";
 import TaskList from "./TaskList";
 import CategoryManager from "./CategoryManager";
 import Navbar from "./Navbar";
 import StatsCard from "./StatsCard";
+import ToastContainer from "./ToastContainer";
 
 import {
   FiCheckSquare,
   FiClock,
   FiCheckCircle,
+  FiPlus,
 } from "react-icons/fi";
-import { FiPlus } from "react-icons/fi";
 
 function Dashboard({ user, onLogout }) {
   // =========================
   // STATES
   // =========================
 
-  const [showTaskForm, setShowTaskForm] =
-    useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
 
   const [showCategoryManager, setShowCategoryManager] =
     useState(false);
 
-  const [refreshKey, setRefreshKey] =
-    useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const [editingTask, setEditingTask] =
-    useState(null);
+  const [editingTask, setEditingTask] = useState(null);
 
-  const [searchQuery, setSearchQuery] =
-    useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
     completed: 0,
   });
+
+  // =========================
+  // TOAST
+  // =========================
+
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = (message, type = "success") => {
+    const id = Date.now() + Math.random();
+
+    setToasts((prev) => [
+      ...prev,
+      {
+        id,
+        message,
+        type,
+      },
+    ]);
+
+    setTimeout(() => {
+      setToasts((prev) =>
+        prev.filter((toast) => toast.id !== id)
+      );
+    }, 3000);
+  };
+
+  const removeToast = (id) => {
+    setToasts((prev) =>
+      prev.filter((toast) => toast.id !== id)
+    );
+  };
 
   // =========================
   // USER NAME
@@ -55,13 +84,26 @@ function Dashboard({ user, onLogout }) {
     stats.total === 0
       ? 0
       : Math.round(
-          (stats.completed / stats.total) *
-            100
+          (stats.completed / stats.total) * 100
         );
 
   // =========================
-  // RENDER
+  // OPEN CATEGORY MANAGER
   // =========================
+
+  const openCategoryManager = () => {
+    setShowCategoryManager(true);
+  };
+
+  // =========================
+  // CLOSE CATEGORY MANAGER
+  // =========================
+
+  const closeCategoryManager = () => {
+    setShowCategoryManager(false);
+
+    setRefreshKey((prev) => prev + 1);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -113,9 +155,7 @@ function Dashboard({ user, onLogout }) {
             title="Total Tasks"
             value={stats.total}
             description="All your tasks"
-            icon={
-              <FiCheckSquare size={24} />
-            }
+            icon={<FiCheckSquare size={24} />}
             iconClassName="bg-blue-500/10 text-blue-400"
             hoverClassName="hover:border-blue-500/30"
           />
@@ -124,9 +164,7 @@ function Dashboard({ user, onLogout }) {
             title="Active Tasks"
             value={stats.active}
             description="Tasks still in progress"
-            icon={
-              <FiClock size={24} />
-            }
+            icon={<FiClock size={24} />}
             iconClassName="bg-yellow-500/10 text-yellow-400"
             hoverClassName="hover:border-yellow-500/30"
           />
@@ -135,9 +173,7 @@ function Dashboard({ user, onLogout }) {
             title="Completed"
             value={stats.completed}
             description="Tasks you finished"
-            icon={
-              <FiCheckCircle size={24} />
-            }
+            icon={<FiCheckCircle size={24} />}
             iconClassName="bg-green-500/10 text-green-400"
             hoverClassName="hover:border-green-500/30"
           />
@@ -153,16 +189,13 @@ function Dashboard({ user, onLogout }) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
-
               <p className="text-sm font-medium text-slate-400">
                 Overall Progress
               </p>
 
               <p className="mt-1 text-sm text-slate-500">
-                {stats.completed} of{" "}
-                {stats.total} tasks completed
+                {stats.completed} of {stats.total} tasks completed
               </p>
-
             </div>
 
             <div className="text-2xl font-bold text-white">
@@ -170,8 +203,6 @@ function Dashboard({ user, onLogout }) {
             </div>
 
           </div>
-
-          {/* Progress Bar */}
 
           <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
 
@@ -192,12 +223,9 @@ function Dashboard({ user, onLogout }) {
 
         <section className="mt-10">
 
-          {/* TASK HEADER */}
-
           <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
-
               <h3 className="text-xl font-bold">
                 My Tasks
               </h3>
@@ -205,20 +233,21 @@ function Dashboard({ user, onLogout }) {
               <p className="mt-1 text-sm text-slate-500">
                 Manage your daily tasks.
               </p>
-
             </div>
 
+            {/* ========================= */}
             {/* ACTION BUTTONS */}
+            {/* ========================= */}
 
             <div className="flex flex-wrap items-center gap-3">
 
-              {/* CATEGORY MANAGER */}
+              {/* MANAGE CATEGORIES */}
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowCategoryManager(true)
-                }
+                onClick={() => {
+                  setShowCategoryManager(true);
+                }}
                 className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white"
               >
                 Manage Categories
@@ -228,9 +257,7 @@ function Dashboard({ user, onLogout }) {
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowTaskForm(true)
-                }
+                onClick={() => setShowTaskForm(true)}
                 className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95"
               >
                 <FiPlus size={18} />
@@ -253,6 +280,7 @@ function Dashboard({ user, onLogout }) {
             onEditTask={(task) => {
               setEditingTask(task);
             }}
+            addToast={addToast}
           />
 
         </section>
@@ -266,19 +294,15 @@ function Dashboard({ user, onLogout }) {
       {showTaskForm && (
         <TaskForm
           user={user}
-          onClose={() =>
-            setShowTaskForm(false)
-          }
-          onTaskCreated={(newTask) => {
-            console.log(
-              "TASK CREATED:",
-              newTask
-            );
-
+          onClose={() => setShowTaskForm(false)}
+          onTaskCreated={() => {
             setShowTaskForm(false);
 
-            setRefreshKey(
-              (prev) => prev + 1
+            setRefreshKey((prev) => prev + 1);
+
+            addToast(
+              "Task created successfully",
+              "success"
             );
           }}
         />
@@ -292,19 +316,15 @@ function Dashboard({ user, onLogout }) {
         <TaskForm
           user={user}
           task={editingTask}
-          onClose={() =>
-            setEditingTask(null)
-          }
-          onTaskUpdated={(updatedTask) => {
-            console.log(
-              "TASK UPDATED:",
-              updatedTask
-            );
-
+          onClose={() => setEditingTask(null)}
+          onTaskUpdated={() => {
             setEditingTask(null);
 
-            setRefreshKey(
-              (prev) => prev + 1
+            setRefreshKey((prev) => prev + 1);
+
+            addToast(
+              "Task updated successfully",
+              "success"
             );
           }}
         />
@@ -317,15 +337,19 @@ function Dashboard({ user, onLogout }) {
       {showCategoryManager && (
         <CategoryManager
           user={user}
-          onClose={() => {
-            setShowCategoryManager(false);
-
-            setRefreshKey(
-              (prev) => prev + 1
-            );
-          }}
+          onClose={closeCategoryManager}
+          addToast={addToast}
         />
       )}
+
+      {/* ========================= */}
+      {/* TOAST CONTAINER */}
+      {/* ========================= */}
+
+      <ToastContainer
+        toasts={toasts}
+        removeToast={removeToast}
+      />
 
     </div>
   );

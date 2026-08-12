@@ -1,22 +1,32 @@
 import { useEffect, useState } from "react";
+
 import {
   FiPlus,
   FiTrash2,
   FiTag,
   FiX,
 } from "react-icons/fi";
+
 import { supabase } from "../supabaseClient";
 import ConfirmModal from "./ConfirmModal";
 
-function CategoryManager({ user, onClose }) {
+function CategoryManager({
+  user,
+  onClose,
+  addToast,
+}) {
   const [categories, setCategories] = useState([]);
+
   const [newCategory, setNewCategory] = useState("");
+
   const [loading, setLoading] = useState(true);
+
   const [adding, setAdding] = useState(false);
+
   const [deletingId, setDeletingId] = useState(null);
+
   const [error, setError] = useState("");
 
-  // Confirmation modal state
   const [categoryToDelete, setCategoryToDelete] =
     useState(null);
 
@@ -54,10 +64,21 @@ function CategoryManager({ user, onClose }) {
       );
 
       setError("Failed to load categories.");
+
+      if (addToast) {
+        addToast(
+          "Failed to load categories",
+          "error"
+        );
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  // =========================
+  // EFFECT
+  // =========================
 
   useEffect(() => {
     fetchCategories();
@@ -86,6 +107,8 @@ function CategoryManager({ user, onClose }) {
       return;
     }
 
+    // Duplicate check
+
     const alreadyExists = categories.some(
       (category) =>
         category.name.toLowerCase() ===
@@ -96,6 +119,14 @@ function CategoryManager({ user, onClose }) {
       setError(
         "This category already exists."
       );
+
+      if (addToast) {
+        addToast(
+          "This category already exists",
+          "warning"
+        );
+      }
+
       return;
     }
 
@@ -103,17 +134,16 @@ function CategoryManager({ user, onClose }) {
     setError("");
 
     try {
-      const { data, error } =
-        await supabase
-          .from("categories")
-          .insert([
-            {
-              user_id: user.id,
-              name: categoryName,
-            },
-          ])
-          .select()
-          .single();
+      const { data, error } = await supabase
+        .from("categories")
+        .insert([
+          {
+            user_id: user.id,
+            name: categoryName,
+          },
+        ])
+        .select()
+        .single();
 
       if (error) {
         throw error;
@@ -125,23 +155,35 @@ function CategoryManager({ user, onClose }) {
       ]);
 
       setNewCategory("");
+
+      if (addToast) {
+        addToast(
+          `"${categoryName}" category created`,
+          "success"
+        );
+      }
     } catch (error) {
       console.error(
         "Add category error:",
         error
       );
 
-      setError(
+      const message =
         error.message ||
-          "Failed to add category."
-      );
+        "Failed to add category.";
+
+      setError(message);
+
+      if (addToast) {
+        addToast(message, "error");
+      }
     } finally {
       setAdding(false);
     }
   };
 
   // =========================
-  // OPEN DELETE CONFIRMATION
+  // OPEN CONFIRM MODAL
   // =========================
 
   const handleDeleteClick = (category) => {
@@ -162,7 +204,16 @@ function CategoryManager({ user, onClose }) {
       setError(
         "User session not found."
       );
+
       setCategoryToDelete(null);
+
+      if (addToast) {
+        addToast(
+          "User session not found",
+          "error"
+        );
+      }
+
       return;
     }
 
@@ -170,16 +221,18 @@ function CategoryManager({ user, onClose }) {
     setError("");
 
     try {
-      const { error } =
-        await supabase
-          .from("categories")
-          .delete()
-          .eq("id", categoryToDelete.id)
-          .eq("user_id", user.id);
+      const { error } = await supabase
+        .from("categories")
+        .delete()
+        .eq("id", categoryToDelete.id)
+        .eq("user_id", user.id);
 
       if (error) {
         throw error;
       }
+
+      const deletedName =
+        categoryToDelete.name;
 
       setCategories((prev) =>
         prev.filter(
@@ -190,16 +243,28 @@ function CategoryManager({ user, onClose }) {
       );
 
       setCategoryToDelete(null);
+
+      if (addToast) {
+        addToast(
+          `"${deletedName}" category deleted`,
+          "success"
+        );
+      }
     } catch (error) {
       console.error(
         "Delete category error:",
         error
       );
 
-      setError(
+      const message =
         error.message ||
-          "Failed to delete category."
-      );
+        "Failed to delete category.";
+
+      setError(message);
+
+      if (addToast) {
+        addToast(message, "error");
+      }
     } finally {
       setDeletingId(null);
     }
@@ -210,155 +275,179 @@ function CategoryManager({ user, onClose }) {
   // =========================
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+    <>
+      {/* ========================= */}
+      {/* CATEGORY MANAGER OVERLAY */}
+      {/* ========================= */}
 
-      <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+      <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
 
-        {/* HEADER */}
+        {/* ========================= */}
+        {/* MODAL */}
+        {/* ========================= */}
 
-        <div className="mb-6 flex items-center justify-between">
-
-          <div className="flex items-center gap-3">
-
-            <div className="rounded-xl bg-blue-500/10 p-3 text-blue-400">
-              <FiTag size={22} />
-            </div>
-
-            <div>
-              <h2 className="text-xl font-bold text-white">
-                Categories
-              </h2>
-
-              <p className="text-sm text-slate-500">
-                Manage your task categories.
-              </p>
-            </div>
-
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
-            title="Close"
-          >
-            <FiX size={20} />
-          </button>
-
-        </div>
-
-        {/* ERROR */}
-
-        {error && (
-          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-            {error}
-          </div>
-        )}
-
-        {/* ADD CATEGORY */}
-
-        <form
-          onSubmit={handleAddCategory}
-          className="mb-6 flex gap-2"
+        <div
+          className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
         >
 
-          <input
-            type="text"
-            value={newCategory}
-            onChange={(e) =>
-              setNewCategory(
-                e.target.value
-              )
-            }
-            placeholder="New category..."
-            maxLength={40}
-            disabled={adding}
-            className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-          />
+          {/* ========================= */}
+          {/* HEADER */}
+          {/* ========================= */}
 
-          <button
-            type="submit"
-            disabled={
-              adding ||
-              !newCategory.trim()
-            }
-            className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <FiPlus size={18} />
+          <div className="mb-6 flex items-center justify-between">
 
-            {adding
-              ? "Adding..."
-              : "Add"}
-          </button>
+            <div className="flex items-center gap-3">
 
-        </form>
+              <div className="rounded-xl bg-blue-500/10 p-3 text-blue-400">
+                <FiTag size={22} />
+              </div>
 
-        {/* CATEGORY LIST */}
+              <div>
 
-        <div className="max-h-72 space-y-2 overflow-y-auto">
+                <h2 className="text-xl font-bold text-white">
+                  Categories
+                </h2>
 
-          {loading ? (
-            <div className="py-8 text-center text-sm text-slate-500">
-              Loading categories...
-            </div>
-          ) : categories.length === 0 ? (
-
-            <div className="rounded-xl border border-dashed border-slate-800 py-8 text-center">
-
-              <FiTag
-                size={28}
-                className="mx-auto mb-3 text-slate-600"
-              />
-
-              <p className="text-sm text-slate-500">
-                No custom categories yet.
-              </p>
-
-            </div>
-
-          ) : (
-
-            categories.map((category) => (
-              <div
-                key={category.id}
-                className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-800/50 px-4 py-3"
-              >
-
-                <div className="flex items-center gap-3">
-
-                  <div className="h-2 w-2 rounded-full bg-blue-400" />
-
-                  <span className="text-sm font-medium text-slate-200">
-                    {category.name}
-                  </span>
-
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleDeleteClick(category)
-                  }
-                  disabled={
-                    deletingId === category.id
-                  }
-                  className="rounded-lg p-2 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
-                  title="Delete category"
-                >
-                  <FiTrash2 size={16} />
-                </button>
+                <p className="text-sm text-slate-500">
+                  Manage your task categories.
+                </p>
 
               </div>
-            ))
 
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+              title="Close"
+            >
+              <FiX size={20} />
+            </button>
+
+          </div>
+
+          {/* ========================= */}
+          {/* ERROR */}
+          {/* ========================= */}
+
+          {error && (
+            <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {error}
+            </div>
           )}
+
+          {/* ========================= */}
+          {/* ADD CATEGORY */}
+          {/* ========================= */}
+
+          <form
+            onSubmit={handleAddCategory}
+            className="mb-6 flex gap-2"
+          >
+
+            <input
+              type="text"
+              value={newCategory}
+              onChange={(e) =>
+                setNewCategory(e.target.value)
+              }
+              placeholder="New category..."
+              maxLength={40}
+              disabled={adding}
+              className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-sm text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+
+            <button
+              type="submit"
+              disabled={
+                adding ||
+                !newCategory.trim()
+              }
+              className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FiPlus size={18} />
+
+              {adding
+                ? "Adding..."
+                : "Add"}
+            </button>
+
+          </form>
+
+          {/* ========================= */}
+          {/* CATEGORY LIST */}
+          {/* ========================= */}
+
+          <div className="max-h-72 space-y-2 overflow-y-auto">
+
+            {loading ? (
+
+              <div className="py-8 text-center text-sm text-slate-500">
+                Loading categories...
+              </div>
+
+            ) : categories.length === 0 ? (
+
+              <div className="rounded-xl border border-dashed border-slate-800 py-8 text-center">
+
+                <FiTag
+                  size={28}
+                  className="mx-auto mb-3 text-slate-600"
+                />
+
+                <p className="text-sm text-slate-500">
+                  No custom categories yet.
+                </p>
+
+              </div>
+
+            ) : (
+
+              categories.map((category) => (
+                <div
+                  key={category.id}
+                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-800/50 px-4 py-3"
+                >
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="h-2 w-2 rounded-full bg-blue-400" />
+
+                    <span className="text-sm font-medium text-slate-200">
+                      {category.name}
+                    </span>
+
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleDeleteClick(category)
+                    }
+                    disabled={
+                      deletingId === category.id
+                    }
+                    className="rounded-lg p-2 text-slate-500 transition hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-40"
+                    title="Delete category"
+                  >
+                    <FiTrash2 size={16} />
+                  </button>
+
+                </div>
+              ))
+
+            )}
+
+          </div>
 
         </div>
 
       </div>
 
       {/* ========================= */}
-      {/* CONFIRM MODAL */}
+      {/* CONFIRM DELETE MODAL */}
       {/* ========================= */}
 
       <ConfirmModal
@@ -372,8 +461,7 @@ function CategoryManager({ user, onClose }) {
         confirmText="Delete"
         cancelText="Cancel"
         loading={
-          deletingId ===
-          categoryToDelete?.id
+          deletingId === categoryToDelete?.id
         }
         onConfirm={handleConfirmDelete}
         onCancel={() => {
@@ -383,7 +471,7 @@ function CategoryManager({ user, onClose }) {
         }}
       />
 
-    </div>
+    </>
   );
 }
 

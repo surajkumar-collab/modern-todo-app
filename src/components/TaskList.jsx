@@ -12,6 +12,7 @@ function TaskList({
   onStatsChange,
   onEditTask,
   searchQuery = "",
+  addToast,
 }) {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -19,10 +20,6 @@ function TaskList({
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] =
     useState(true);
-
-  // =========================
-  // FILTER STATES
-  // =========================
 
   const [statusFilter, setStatusFilter] =
     useState("all");
@@ -35,10 +32,6 @@ function TaskList({
 
   const [sortBy, setSortBy] =
     useState("newest");
-
-  // =========================
-  // DELETE CONFIRMATION
-  // =========================
 
   const [taskToDelete, setTaskToDelete] =
     useState(null);
@@ -59,13 +52,14 @@ function TaskList({
     setLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        });
+      const { data, error } =
+        await supabase
+          .from("tasks")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false,
+          });
 
       if (error) {
         throw error;
@@ -75,18 +69,16 @@ function TaskList({
 
       setTasks(taskData);
 
-      // =========================
-      // STATS
-      // =========================
-
       if (onStatsChange) {
         const total = taskData.length;
 
-        const completed = taskData.filter(
-          (task) => task.completed
-        ).length;
+        const completed =
+          taskData.filter(
+            (task) => task.completed
+          ).length;
 
-        const active = total - completed;
+        const active =
+          total - completed;
 
         onStatsChange({
           total,
@@ -98,6 +90,11 @@ function TaskList({
       console.error(
         "Fetch tasks error:",
         error
+      );
+
+      addToast?.(
+        "Failed to load tasks",
+        "error"
       );
     } finally {
       setLoading(false);
@@ -117,13 +114,14 @@ function TaskList({
     setCategoriesLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: true,
-        });
+      const { data, error } =
+        await supabase
+          .from("categories")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: true,
+          });
 
       if (error) {
         throw error;
@@ -137,6 +135,11 @@ function TaskList({
       );
 
       setCategories([]);
+
+      addToast?.(
+        "Failed to load categories",
+        "error"
+      );
     } finally {
       setCategoriesLoading(false);
     }
@@ -157,17 +160,18 @@ function TaskList({
 
   const toggleTask = async (task) => {
     try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .update({
-          completed: !task.completed,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq("id", task.id)
-        .eq("user_id", user.id)
-        .select()
-        .single();
+      const { data, error } =
+        await supabase
+          .from("tasks")
+          .update({
+            completed: !task.completed,
+            updated_at:
+              new Date().toISOString(),
+          })
+          .eq("id", task.id)
+          .eq("user_id", user.id)
+          .select()
+          .single();
 
       if (error) {
         throw error;
@@ -181,17 +185,34 @@ function TaskList({
         )
       );
 
+      if (data.completed) {
+        addToast?.(
+          "Task completed 🎉",
+          "success"
+        );
+      } else {
+        addToast?.(
+          "Task marked as active",
+          "info"
+        );
+      }
+
       fetchTasks();
     } catch (error) {
       console.error(
         "Update task error:",
         error
       );
+
+      addToast?.(
+        "Failed to update task",
+        "error"
+      );
     }
   };
 
   // =========================
-  // OPEN DELETE MODAL
+  // DELETE CLICK
   // =========================
 
   const handleDeleteClick = (task) => {
@@ -209,17 +230,24 @@ function TaskList({
 
     if (!user?.id) {
       setTaskToDelete(null);
+
+      addToast?.(
+        "User session not found",
+        "error"
+      );
+
       return;
     }
 
     setDeletingId(taskToDelete.id);
 
     try {
-      const { error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", taskToDelete.id)
-        .eq("user_id", user.id);
+      const { error } =
+        await supabase
+          .from("tasks")
+          .delete()
+          .eq("id", taskToDelete.id)
+          .eq("user_id", user.id);
 
       if (error) {
         throw error;
@@ -228,17 +256,31 @@ function TaskList({
       setTasks((prevTasks) =>
         prevTasks.filter(
           (task) =>
-            task.id !== taskToDelete.id
+            task.id !==
+            taskToDelete.id
         )
       );
 
+      const deletedTitle =
+        taskToDelete.title;
+
       setTaskToDelete(null);
+
+      addToast?.(
+        `"${deletedTitle}" deleted successfully`,
+        "success"
+      );
 
       fetchTasks();
     } catch (error) {
       console.error(
         "Delete task error:",
         error
+      );
+
+      addToast?.(
+        "Failed to delete task",
+        "error"
       );
     } finally {
       setDeletingId(null);
@@ -250,7 +292,10 @@ function TaskList({
   // =========================
 
   const getDueDateStatus = (task) => {
-    if (!task.due_date || task.completed) {
+    if (
+      !task.due_date ||
+      task.completed
+    ) {
       return null;
     }
 
@@ -276,27 +321,31 @@ function TaskList({
     if (diffDays < 0) {
       return {
         label: "Overdue",
-        className: "text-red-400",
+        className:
+          "text-red-400",
       };
     }
 
     if (diffDays === 0) {
       return {
         label: "Due Today",
-        className: "text-yellow-400",
+        className:
+          "text-yellow-400",
       };
     }
 
     if (diffDays === 1) {
       return {
         label: "Due Tomorrow",
-        className: "text-blue-400",
+        className:
+          "text-blue-400",
       };
     }
 
     return {
       label: "Upcoming",
-      className: "text-slate-500",
+      className:
+        "text-slate-500",
     };
   };
 
@@ -304,7 +353,9 @@ function TaskList({
   // FORMAT DATE
   // =========================
 
-  const formatDueDate = (dateString) => {
+  const formatDueDate = (
+    dateString
+  ) => {
     if (!dateString) return "";
 
     const [year, month, day] =
@@ -333,7 +384,9 @@ function TaskList({
   const filteredTasks = tasks
     .filter((task) => {
       const search =
-        searchQuery.toLowerCase().trim();
+        searchQuery
+          .toLowerCase()
+          .trim();
 
       const matchesSearch =
         !search ||
@@ -342,22 +395,29 @@ function TaskList({
           .includes(search) ||
         task.description
           ?.toLowerCase()
+          .includes(search) ||
+        task.category
+          ?.toLowerCase()
           .includes(search);
 
       const matchesStatus =
         statusFilter === "all" ||
-        (statusFilter === "active" &&
+        (statusFilter ===
+          "active" &&
           !task.completed) ||
-        (statusFilter === "completed" &&
+        (statusFilter ===
+          "completed" &&
           task.completed);
 
       const matchesCategory =
         categoryFilter === "all" ||
-        task.category === categoryFilter;
+        task.category ===
+          categoryFilter;
 
       const matchesPriority =
         priorityFilter === "all" ||
-        task.priority === priorityFilter;
+        task.priority ===
+          priorityFilter;
 
       return (
         matchesSearch &&
@@ -389,8 +449,12 @@ function TaskList({
         };
 
         return (
-          priorityOrder[a.priority] -
-          priorityOrder[b.priority]
+          priorityOrder[
+            a.priority
+          ] -
+          priorityOrder[
+            b.priority
+          ]
         );
       }
 
@@ -428,71 +492,75 @@ function TaskList({
   return (
     <div className="w-full">
 
-      {/* ========================= */}
-      {/* FILTER BAR */}
-      {/* ========================= */}
-
       <FilterBar
         statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        categoryFilter={categoryFilter}
-        setCategoryFilter={setCategoryFilter}
-        priorityFilter={priorityFilter}
-        setPriorityFilter={setPriorityFilter}
+        setStatusFilter={
+          setStatusFilter
+        }
+        categoryFilter={
+          categoryFilter
+        }
+        setCategoryFilter={
+          setCategoryFilter
+        }
+        priorityFilter={
+          priorityFilter
+        }
+        setPriorityFilter={
+          setPriorityFilter
+        }
         sortBy={sortBy}
         setSortBy={setSortBy}
         categories={categories}
-        categoriesLoading={categoriesLoading}
-        taskCount={filteredTasks.length}
+        categoriesLoading={
+          categoriesLoading
+        }
+        taskCount={
+          filteredTasks.length
+        }
       />
-
-      {/* ========================= */}
-      {/* NO TASKS */}
-      {/* ========================= */}
 
       {tasks.length === 0 && (
         <EmptyState type="tasks" />
       )}
-
-      {/* ========================= */}
-      {/* NO RESULTS */}
-      {/* ========================= */}
 
       {tasks.length > 0 &&
         filteredTasks.length === 0 && (
           <EmptyState type="search" />
         )}
 
-      {/* ========================= */}
-      {/* TASK ITEMS */}
-      {/* ========================= */}
-
       {filteredTasks.length > 0 && (
         <div className="space-y-4">
 
-          {filteredTasks.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onToggle={toggleTask}
-              onEdit={onEditTask}
-              onDelete={handleDeleteClick}
-              formatDueDate={formatDueDate}
-              getDueDateStatus={
-                getDueDateStatus
-              }
-            />
-          ))}
+          {filteredTasks.map(
+            (task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onToggle={toggleTask}
+                onEdit={onEditTask}
+                onDelete={
+                  handleDeleteClick
+                }
+                formatDueDate={
+                  formatDueDate
+                }
+                getDueDateStatus={
+                  getDueDateStatus
+                }
+              />
+            )
+          )}
 
         </div>
       )}
 
-      {/* ========================= */}
-      {/* CONFIRM DELETE MODAL */}
-      {/* ========================= */}
+      {/* CONFIRM MODAL */}
 
       <ConfirmModal
-        isOpen={Boolean(taskToDelete)}
+        isOpen={Boolean(
+          taskToDelete
+        )}
         title="Delete Task?"
         message={
           taskToDelete
@@ -502,9 +570,12 @@ function TaskList({
         confirmText="Delete"
         cancelText="Cancel"
         loading={
-          deletingId === taskToDelete?.id
+          deletingId ===
+          taskToDelete?.id
         }
-        onConfirm={handleConfirmDelete}
+        onConfirm={
+          handleConfirmDelete
+        }
         onCancel={() => {
           if (!deletingId) {
             setTaskToDelete(null);
