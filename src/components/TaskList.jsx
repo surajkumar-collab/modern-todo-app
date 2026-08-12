@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
-import {
-  FiCheckSquare,
-  FiSearch,
-} from "react-icons/fi";
 import { supabase } from "../supabaseClient";
+
 import TaskItem from "./TaskItem";
 import FilterBar from "./FilterBar";
 import EmptyState from "./EmptyState";
+import ConfirmModal from "./ConfirmModal";
 
 function TaskList({
   user,
@@ -17,6 +15,7 @@ function TaskList({
 }) {
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [categoriesLoading, setCategoriesLoading] =
     useState(true);
@@ -36,6 +35,16 @@ function TaskList({
 
   const [sortBy, setSortBy] =
     useState("newest");
+
+  // =========================
+  // DELETE CONFIRMATION
+  // =========================
+
+  const [taskToDelete, setTaskToDelete] =
+    useState(null);
+
+  const [deletingId, setDeletingId] =
+    useState(null);
 
   // =========================
   // FETCH TASKS
@@ -182,15 +191,34 @@ function TaskList({
   };
 
   // =========================
-  // DELETE TASK
+  // OPEN DELETE MODAL
   // =========================
 
-  const deleteTask = async (taskId) => {
+  const handleDeleteClick = (task) => {
+    setTaskToDelete(task);
+  };
+
+  // =========================
+  // CONFIRM DELETE
+  // =========================
+
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete?.id) {
+      return;
+    }
+
+    if (!user?.id) {
+      setTaskToDelete(null);
+      return;
+    }
+
+    setDeletingId(taskToDelete.id);
+
     try {
       const { error } = await supabase
         .from("tasks")
         .delete()
-        .eq("id", taskId)
+        .eq("id", taskToDelete.id)
         .eq("user_id", user.id);
 
       if (error) {
@@ -199,9 +227,12 @@ function TaskList({
 
       setTasks((prevTasks) =>
         prevTasks.filter(
-          (task) => task.id !== taskId
+          (task) =>
+            task.id !== taskToDelete.id
         )
       );
+
+      setTaskToDelete(null);
 
       fetchTasks();
     } catch (error) {
@@ -209,6 +240,8 @@ function TaskList({
         "Delete task error:",
         error
       );
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -268,7 +301,7 @@ function TaskList({
   };
 
   // =========================
-  // FORMAT DUE DATE
+  // FORMAT DATE
   // =========================
 
   const formatDueDate = (dateString) => {
@@ -302,8 +335,8 @@ function TaskList({
       const search =
         searchQuery.toLowerCase().trim();
 
-      // Search
       const matchesSearch =
+        !search ||
         task.title
           ?.toLowerCase()
           .includes(search) ||
@@ -311,7 +344,6 @@ function TaskList({
           ?.toLowerCase()
           .includes(search);
 
-      // Status
       const matchesStatus =
         statusFilter === "all" ||
         (statusFilter === "active" &&
@@ -319,12 +351,10 @@ function TaskList({
         (statusFilter === "completed" &&
           task.completed);
 
-      // Category
       const matchesCategory =
         categoryFilter === "all" ||
         task.category === categoryFilter;
 
-      // Priority
       const matchesPriority =
         priorityFilter === "all" ||
         task.priority === priorityFilter;
@@ -337,7 +367,6 @@ function TaskList({
       );
     })
     .sort((a, b) => {
-      // Newest
       if (sortBy === "newest") {
         return (
           new Date(b.created_at) -
@@ -345,7 +374,6 @@ function TaskList({
         );
       }
 
-      // Oldest
       if (sortBy === "oldest") {
         return (
           new Date(a.created_at) -
@@ -353,7 +381,6 @@ function TaskList({
         );
       }
 
-      // Priority
       if (sortBy === "priority") {
         const priorityOrder = {
           high: 1,
@@ -367,7 +394,6 @@ function TaskList({
         );
       }
 
-      // Due Date
       if (sortBy === "dueDate") {
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
@@ -425,22 +451,7 @@ function TaskList({
       {/* ========================= */}
 
       {tasks.length === 0 && (
-        <div className="flex min-h-[250px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-6 text-center">
-
-          <div className="mb-4 rounded-2xl bg-blue-500/10 p-5 text-blue-400">
-            <FiCheckSquare size={32} />
-          </div>
-
-          <h4 className="text-lg font-semibold text-white">
-            No tasks yet
-          </h4>
-
-          <p className="mt-2 max-w-sm text-sm text-slate-500">
-            Create your first task and start
-            getting things done.
-          </p>
-
-        </div>
+        <EmptyState type="tasks" />
       )}
 
       {/* ========================= */}
@@ -449,21 +460,7 @@ function TaskList({
 
       {tasks.length > 0 &&
         filteredTasks.length === 0 && (
-          <div className="flex min-h-[220px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30 px-6 text-center">
-
-            <div className="mb-4 rounded-2xl bg-slate-800 p-5 text-slate-400">
-              <FiSearch size={30} />
-            </div>
-
-            <h4 className="text-lg font-semibold text-white">
-              No matching tasks
-            </h4>
-
-            <p className="mt-2 text-sm text-slate-500">
-              Try changing your search or filters.
-            </p>
-
-          </div>
+          <EmptyState type="search" />
         )}
 
       {/* ========================= */}
@@ -479,7 +476,7 @@ function TaskList({
               task={task}
               onToggle={toggleTask}
               onEdit={onEditTask}
-              onDelete={deleteTask}
+              onDelete={handleDeleteClick}
               formatDueDate={formatDueDate}
               getDueDateStatus={
                 getDueDateStatus
@@ -489,6 +486,31 @@ function TaskList({
 
         </div>
       )}
+
+      {/* ========================= */}
+      {/* CONFIRM DELETE MODAL */}
+      {/* ========================= */}
+
+      <ConfirmModal
+        isOpen={Boolean(taskToDelete)}
+        title="Delete Task?"
+        message={
+          taskToDelete
+            ? `Are you sure you want to delete "${taskToDelete.title}"? This action cannot be undone.`
+            : ""
+        }
+        confirmText="Delete"
+        cancelText="Cancel"
+        loading={
+          deletingId === taskToDelete?.id
+        }
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          if (!deletingId) {
+            setTaskToDelete(null);
+          }
+        }}
+      />
 
     </div>
   );
