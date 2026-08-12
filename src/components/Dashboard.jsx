@@ -3,13 +3,14 @@ import TaskForm from "./TaskForm";
 import TaskList from "./TaskList";
 import CategoryManager from "./CategoryManager";
 import Navbar from "./Navbar";
+import StatsCard from "./StatsCard";
 
 import {
   FiCheckSquare,
   FiClock,
   FiCheckCircle,
-  FiPlus,
 } from "react-icons/fi";
+import { FiPlus } from "react-icons/fi";
 
 function Dashboard({ user, onLogout }) {
   // =========================
@@ -45,6 +46,18 @@ function Dashboard({ user, onLogout }) {
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "User";
+
+  // =========================
+  // COMPLETION %
+  // =========================
+
+  const completionPercentage =
+    stats.total === 0
+      ? 0
+      : Math.round(
+          (stats.completed / stats.total) *
+            100
+        );
 
   // =========================
   // RENDER
@@ -96,81 +109,78 @@ function Dashboard({ user, onLogout }) {
 
         <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 
-          {/* TOTAL */}
+          <StatsCard
+            title="Total Tasks"
+            value={stats.total}
+            description="All your tasks"
+            icon={
+              <FiCheckSquare size={24} />
+            }
+            iconClassName="bg-blue-500/10 text-blue-400"
+            hoverClassName="hover:border-blue-500/30"
+          />
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-blue-500/30">
+          <StatsCard
+            title="Active Tasks"
+            value={stats.active}
+            description="Tasks still in progress"
+            icon={
+              <FiClock size={24} />
+            }
+            iconClassName="bg-yellow-500/10 text-yellow-400"
+            hoverClassName="hover:border-yellow-500/30"
+          />
 
-            <div className="flex items-center justify-between">
+          <StatsCard
+            title="Completed"
+            value={stats.completed}
+            description="Tasks you finished"
+            icon={
+              <FiCheckCircle size={24} />
+            }
+            iconClassName="bg-green-500/10 text-green-400"
+            hoverClassName="hover:border-green-500/30"
+          />
 
-              <div>
+        </section>
 
-                <p className="text-sm text-slate-400">
-                  Total Tasks
-                </p>
+        {/* ========================= */}
+        {/* PROGRESS */}
+        {/* ========================= */}
 
-                <p className="mt-3 text-3xl font-bold">
-                  {stats.total}
-                </p>
+        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
 
-              </div>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-              <div className="rounded-xl bg-blue-500/10 p-3 text-blue-400">
-                <FiCheckSquare size={24} />
-              </div>
+            <div>
 
+              <p className="text-sm font-medium text-slate-400">
+                Overall Progress
+              </p>
+
+              <p className="mt-1 text-sm text-slate-500">
+                {stats.completed} of{" "}
+                {stats.total} tasks completed
+              </p>
+
+            </div>
+
+            <div className="text-2xl font-bold text-white">
+              {completionPercentage}%
             </div>
 
           </div>
 
-          {/* ACTIVE */}
+          {/* Progress Bar */}
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-yellow-500/30">
+          <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
 
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm text-slate-400">
-                  Active Tasks
-                </p>
-
-                <p className="mt-3 text-3xl font-bold">
-                  {stats.active}
-                </p>
-
-              </div>
-
-              <div className="rounded-xl bg-yellow-500/10 p-3 text-yellow-400">
-                <FiClock size={24} />
-              </div>
-
-            </div>
-
-          </div>
-
-          {/* COMPLETED */}
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 transition hover:border-green-500/30">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm text-slate-400">
-                  Completed
-                </p>
-
-                <p className="mt-3 text-3xl font-bold">
-                  {stats.completed}
-                </p>
-
-              </div>
-
-              <div className="rounded-xl bg-green-500/10 p-3 text-green-400">
-                <FiCheckCircle size={24} />
-              </div>
-
-            </div>
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-500"
+              style={{
+                width: `${completionPercentage}%`,
+              }}
+            />
 
           </div>
 
