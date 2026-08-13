@@ -12,31 +12,45 @@ function FilterBar({
   taskCount,
 }) {
   return (
-    <div className="mb-6">
+    <div className="mb-6 w-full">
 
       {/* ========================= */}
-      {/* FILTER CONTROLS */}
+      {/* TOP ROW */}
       {/* ========================= */}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
         {/* RESULT COUNT */}
 
-        <span className="text-sm text-slate-500">
-          {taskCount}{" "}
-          {taskCount === 1 ? "task" : "tasks"}
-        </span>
+        <div className="flex items-center justify-between lg:justify-start">
 
-        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-medium text-slate-500">
+            {taskCount}{" "}
+            {taskCount === 1
+              ? "task"
+              : "tasks"}
+          </span>
 
+        </div>
+
+        {/* ========================= */}
+        {/* FILTER CONTROLS */}
+        {/* ========================= */}
+
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:flex lg:w-auto lg:flex-wrap">
+
+          {/* ========================= */}
           {/* STATUS */}
+          {/* ========================= */}
 
           <select
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter(e.target.value)
+              setStatusFilter(
+                e.target.value
+              )
             }
-            className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500"
+            className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition hover:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 lg:w-auto"
           >
             <option value="all">
               All Tasks
@@ -51,38 +65,50 @@ function FilterBar({
             </option>
           </select>
 
+          {/* ========================= */}
           {/* CATEGORY */}
+          {/* ========================= */}
 
           <select
             value={categoryFilter}
             onChange={(e) =>
-              setCategoryFilter(e.target.value)
+              setCategoryFilter(
+                e.target.value
+              )
             }
             disabled={categoriesLoading}
-            className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500 disabled:opacity-60"
+            className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition hover:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto"
           >
             <option value="all">
-              All Categories
+              {categoriesLoading
+                ? "Loading Categories..."
+                : "All Categories"}
             </option>
 
-            {categories.map((category) => (
-              <option
-                key={category.id}
-                value={category.name}
-              >
-                {category.name}
-              </option>
-            ))}
+            {categories.map(
+              (category) => (
+                <option
+                  key={category.id}
+                  value={category.name}
+                >
+                  {category.name}
+                </option>
+              )
+            )}
           </select>
 
+          {/* ========================= */}
           {/* PRIORITY */}
+          {/* ========================= */}
 
           <select
             value={priorityFilter}
             onChange={(e) =>
-              setPriorityFilter(e.target.value)
+              setPriorityFilter(
+                e.target.value
+              )
             }
-            className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500"
+            className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition hover:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 lg:w-auto"
           >
             <option value="all">
               All Priorities
@@ -101,14 +127,18 @@ function FilterBar({
             </option>
           </select>
 
+          {/* ========================= */}
           {/* SORT */}
+          {/* ========================= */}
 
           <select
             value={sortBy}
             onChange={(e) =>
-              setSortBy(e.target.value)
+              setSortBy(
+                e.target.value
+              )
             }
-            className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition focus:border-blue-500"
+            className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition hover:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 lg:w-auto"
           >
             <option value="newest">
               Newest First
