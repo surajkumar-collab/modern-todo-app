@@ -7,6 +7,9 @@ import {
 } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 
+const TITLE_MAX_LENGTH = 100;
+const DESCRIPTION_MAX_LENGTH = 500;
+
 function TaskForm({
   user,
   task = null,
@@ -31,7 +34,8 @@ function TaskForm({
   // =========================
 
   const [categories, setCategories] = useState([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [categoriesLoading, setCategoriesLoading] =
+    useState(true);
 
   // =========================
   // OTHER STATES
@@ -39,6 +43,24 @@ function TaskForm({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // =========================
+  // TODAY'S DATE
+  // =========================
+
+  const getTodayDate = () => {
+    const today = new Date();
+
+    const year = today.getFullYear();
+    const month = String(
+      today.getMonth() + 1
+    ).padStart(2, "0");
+    const day = String(
+      today.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
 
   // =========================
   // FETCH CATEGORIES
@@ -68,12 +90,15 @@ function TaskForm({
       const fetchedCategories = data || [];
 
       // Always keep General available
-      const hasGeneral = fetchedCategories.some(
-        (item) =>
-          item.name?.toLowerCase() === "general"
-      );
+      const hasGeneral =
+        fetchedCategories.some(
+          (item) =>
+            item.name?.toLowerCase() ===
+            "general"
+        );
 
-      let finalCategories = fetchedCategories;
+      let finalCategories =
+        fetchedCategories;
 
       if (!hasGeneral) {
         finalCategories = [
@@ -85,9 +110,7 @@ function TaskForm({
         ];
       }
 
-      setCategories(finalCategories);
-
-      // If editing, keep the existing task category
+      // Editing task with existing category
       if (task?.category) {
         const existingCategory =
           finalCategories.find(
@@ -96,24 +119,33 @@ function TaskForm({
           );
 
         if (existingCategory) {
+          setCategories(
+            finalCategories
+          );
           setCategory(task.category);
         } else {
-          // Keep old category visible even if
-          // it no longer exists in categories table
-          setCategories((prev) => [
+          // Keep old category visible
+          // even if deleted later
+          setCategories([
             {
               id: "current-task-category",
               name: task.category,
             },
-            ...prev,
+            ...finalCategories,
           ]);
 
           setCategory(task.category);
         }
-      } else if (finalCategories.length > 0) {
-        setCategory(finalCategories[0].name);
       } else {
-        setCategory("General");
+        setCategories(
+          finalCategories
+        );
+
+        setCategory(
+          finalCategories.length > 0
+            ? finalCategories[0].name
+            : "General"
+        );
       }
     } catch (err) {
       console.error(
@@ -121,7 +153,6 @@ function TaskForm({
         err
       );
 
-      // Fallback
       setCategories([
         {
           id: "default-general",
@@ -138,16 +169,24 @@ function TaskForm({
   };
 
   // =========================
-  // LOAD TASK + CATEGORIES
+  // LOAD TASK
   // =========================
 
   useEffect(() => {
     if (task) {
       setTitle(task.title || "");
-      setDescription(task.description || "");
-      setCategory(task.category || "General");
-      setPriority(task.priority || "medium");
-      setDueDate(task.due_date || "");
+      setDescription(
+        task.description || ""
+      );
+      setCategory(
+        task.category || "General"
+      );
+      setPriority(
+        task.priority || "medium"
+      );
+      setDueDate(
+        task.due_date || ""
+      );
     } else {
       setTitle("");
       setDescription("");
@@ -155,14 +194,65 @@ function TaskForm({
       setPriority("medium");
       setDueDate("");
     }
+
+    setError("");
   }, [task]);
+
+  // =========================
+  // LOAD CATEGORIES
+  // =========================
 
   useEffect(() => {
     fetchCategories();
   }, [user?.id, task?.id]);
 
   // =========================
-  // SUBMIT TASK
+  // TITLE CHANGE
+  // =========================
+
+  const handleTitleChange = (e) => {
+    const value = e.target.value;
+
+    if (
+      value.length <=
+      TITLE_MAX_LENGTH
+    ) {
+      setTitle(value);
+      setError("");
+    }
+  };
+
+  // =========================
+  // DESCRIPTION CHANGE
+  // =========================
+
+  const handleDescriptionChange = (
+    e
+  ) => {
+    const value = e.target.value;
+
+    if (
+      value.length <=
+      DESCRIPTION_MAX_LENGTH
+    ) {
+      setDescription(value);
+      setError("");
+    }
+  };
+
+  // =========================
+  // DUE DATE CHANGE
+  // =========================
+
+  const handleDueDateChange = (
+    e
+  ) => {
+    setDueDate(e.target.value);
+    setError("");
+  };
+
+  // =========================
+  // SUBMIT
   // =========================
 
   const handleSubmit = async (e) => {
@@ -170,13 +260,58 @@ function TaskForm({
 
     setError("");
 
-    // Validate title
-    if (!title.trim()) {
-      setError("Please enter a task title.");
+    const trimmedTitle =
+      title.trim();
+
+    const trimmedDescription =
+      description.trim();
+
+    // =========================
+    // TITLE VALIDATION
+    // =========================
+
+    if (!trimmedTitle) {
+      setError(
+        "Please enter a task title."
+      );
       return;
     }
 
-    // Validate user
+    if (trimmedTitle.length < 2) {
+      setError(
+        "Task title must contain at least 2 characters."
+      );
+      return;
+    }
+
+    if (
+      trimmedTitle.length >
+      TITLE_MAX_LENGTH
+    ) {
+      setError(
+        `Task title cannot exceed ${TITLE_MAX_LENGTH} characters.`
+      );
+      return;
+    }
+
+    // =========================
+    // DESCRIPTION VALIDATION
+    // =========================
+
+    if (
+      trimmedDescription.length >
+      DESCRIPTION_MAX_LENGTH
+    ) {
+      setError(
+        `Description cannot exceed ${DESCRIPTION_MAX_LENGTH} characters.`
+      );
+      return;
+    }
+
+    // =========================
+    // USER VALIDATION
+    // =========================
+
     if (!user?.id) {
       setError(
         "User session not found. Please login again."
@@ -184,11 +319,35 @@ function TaskForm({
       return;
     }
 
-    // Validate category
+    // =========================
+    // CATEGORY VALIDATION
+    // =========================
+
     if (!category) {
-      setError("Please select a category.");
+      setError(
+        "Please select a category."
+      );
       return;
     }
+
+    // =========================
+    // DUE DATE VALIDATION
+    // =========================
+
+    if (dueDate) {
+      const today = getTodayDate();
+
+      if (dueDate < today) {
+        setError(
+          "Due date cannot be in the past."
+        );
+        return;
+      }
+    }
+
+    // =========================
+    // SUBMIT
+    // =========================
 
     setLoading(true);
 
@@ -198,31 +357,32 @@ function TaskForm({
       // =========================
 
       if (isEditing) {
-        const { data, error } = await supabase
-          .from("tasks")
-          .update({
-            title: title.trim(),
-            description:
-              description.trim() || null,
-            category,
-            priority,
-            due_date: dueDate || null,
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq("id", task.id)
-          .eq("user_id", user.id)
-          .select()
-          .single();
+        const { data, error } =
+          await supabase
+            .from("tasks")
+            .update({
+              title: trimmedTitle,
+              description:
+                trimmedDescription ||
+                null,
+              category,
+              priority,
+              due_date:
+                dueDate || null,
+              updated_at:
+                new Date().toISOString(),
+            })
+            .eq("id", task.id)
+            .eq(
+              "user_id",
+              user.id
+            )
+            .select()
+            .single();
 
         if (error) {
           throw error;
         }
-
-        console.log(
-          "Task updated successfully:",
-          data
-        );
 
         if (onTaskUpdated) {
           onTaskUpdated(data);
@@ -235,30 +395,28 @@ function TaskForm({
       // CREATE TASK
       // =========================
 
-      const { data, error } = await supabase
-        .from("tasks")
-        .insert([
-          {
-            user_id: user.id,
-            title: title.trim(),
-            description:
-              description.trim() || null,
-            category,
-            priority,
-            due_date: dueDate || null,
-          },
-        ])
-        .select()
-        .single();
+      const { data, error } =
+        await supabase
+          .from("tasks")
+          .insert([
+            {
+              user_id: user.id,
+              title: trimmedTitle,
+              description:
+                trimmedDescription ||
+                null,
+              category,
+              priority,
+              due_date:
+                dueDate || null,
+            },
+          ])
+          .select()
+          .single();
 
       if (error) {
         throw error;
       }
-
-      console.log(
-        "Task created successfully:",
-        data
-      );
 
       if (onTaskCreated) {
         onTaskCreated(data);
@@ -283,9 +441,9 @@ function TaskForm({
   // =========================
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-sm">
 
-      <div className="w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+      <div className="my-auto w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
 
         {/* ========================= */}
         {/* HEADER */}
@@ -310,7 +468,9 @@ function TaskForm({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+            disabled={loading}
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            title="Close"
           >
             <FiX size={22} />
           </button>
@@ -322,7 +482,7 @@ function TaskForm({
         {/* ========================= */}
 
         {error && (
-          <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-5 text-red-400">
             {error}
           </div>
         )}
@@ -342,18 +502,38 @@ function TaskForm({
 
           <div>
 
-            <label className="mb-2 block text-sm font-medium text-slate-300">
-              Task Title
-            </label>
+            <div className="mb-2 flex items-center justify-between">
+
+              <label className="text-sm font-medium text-slate-300">
+                Task Title
+              </label>
+
+              <span
+                className={`text-xs ${
+                  title.length >=
+                  TITLE_MAX_LENGTH
+                    ? "text-red-400"
+                    : "text-slate-500"
+                }`}
+              >
+                {title.length}/
+                {TITLE_MAX_LENGTH}
+              </span>
+
+            </div>
 
             <input
               type="text"
               value={title}
-              onChange={(e) =>
-                setTitle(e.target.value)
+              onChange={
+                handleTitleChange
               }
               placeholder="e.g. Complete React project"
-              className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              maxLength={
+                TITLE_MAX_LENGTH
+              }
+              disabled={loading}
+              className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               autoFocus
             />
 
@@ -365,18 +545,38 @@ function TaskForm({
 
           <div>
 
-            <label className="mb-2 block text-sm font-medium text-slate-300">
-              Description
-            </label>
+            <div className="mb-2 flex items-center justify-between">
+
+              <label className="text-sm font-medium text-slate-300">
+                Description
+              </label>
+
+              <span
+                className={`text-xs ${
+                  description.length >=
+                  DESCRIPTION_MAX_LENGTH
+                    ? "text-red-400"
+                    : "text-slate-500"
+                }`}
+              >
+                {description.length}/
+                {DESCRIPTION_MAX_LENGTH}
+              </span>
+
+            </div>
 
             <textarea
               value={description}
-              onChange={(e) =>
-                setDescription(e.target.value)
+              onChange={
+                handleDescriptionChange
               }
               placeholder="Add some details about your task..."
               rows={3}
-              className="w-full resize-none rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              maxLength={
+                DESCRIPTION_MAX_LENGTH
+              }
+              disabled={loading}
+              className="w-full resize-none rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white placeholder:text-slate-500 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             />
 
           </div>
@@ -398,25 +598,33 @@ function TaskForm({
               <select
                 value={category}
                 onChange={(e) =>
-                  setCategory(e.target.value)
+                  setCategory(
+                    e.target.value
+                  )
                 }
-                disabled={categoriesLoading}
+                disabled={
+                  categoriesLoading ||
+                  loading
+                }
                 className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
 
-                {categories.length === 0 ? (
+                {categories.length ===
+                0 ? (
                   <option value="General">
                     General
                   </option>
                 ) : (
-                  categories.map((item) => (
-                    <option
-                      key={item.id}
-                      value={item.name}
-                    >
-                      {item.name}
-                    </option>
-                  ))
+                  categories.map(
+                    (item) => (
+                      <option
+                        key={item.id}
+                        value={item.name}
+                      >
+                        {item.name}
+                      </option>
+                    )
+                  )
                 )}
 
               </select>
@@ -440,9 +648,12 @@ function TaskForm({
               <select
                 value={priority}
                 onChange={(e) =>
-                  setPriority(e.target.value)
+                  setPriority(
+                    e.target.value
+                  )
                 }
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                disabled={loading}
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
 
                 <option value="low">
@@ -483,13 +694,20 @@ function TaskForm({
               <input
                 type="date"
                 value={dueDate}
-                onChange={(e) =>
-                  setDueDate(e.target.value)
+                min={getTodayDate()}
+                onChange={
+                  handleDueDateChange
                 }
-                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 py-3 pl-11 pr-4 text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                disabled={loading}
+                className="w-full rounded-xl border border-slate-700 bg-slate-800/70 py-3 pl-11 pr-4 text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               />
 
             </div>
+
+            <p className="mt-1 text-xs text-slate-500">
+              You can choose today or a
+              future date.
+            </p>
 
           </div>
 
@@ -499,24 +717,21 @@ function TaskForm({
 
           <div className="flex gap-3 pt-2">
 
-            {/* CANCEL */}
-
             <button
               type="button"
               onClick={onClose}
               disabled={loading}
-              className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 font-semibold text-slate-300 transition hover:bg-slate-700 disabled:opacity-50"
+              className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
               Cancel
             </button>
-
-            {/* SAVE / ADD */}
 
             <button
               type="submit"
               disabled={
                 loading ||
-                categoriesLoading
+                categoriesLoading ||
+                !title.trim()
               }
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 font-semibold text-white transition hover:shadow-lg hover:shadow-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
