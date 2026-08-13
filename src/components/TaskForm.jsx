@@ -4,6 +4,7 @@ import {
   FiCalendar,
   FiPlus,
   FiEdit3,
+  FiRepeat,
 } from "react-icons/fi";
 import { supabase } from "../supabaseClient";
 
@@ -30,6 +31,16 @@ function TaskForm({
   const [dueDate, setDueDate] = useState("");
 
   // =========================
+  // RECURRENCE STATES
+  // =========================
+
+  const [recurrenceType, setRecurrenceType] =
+    useState("none");
+
+  const [recurrenceEndDate, setRecurrenceEndDate] =
+    useState("");
+
+  // =========================
   // CATEGORY STATES
   // =========================
 
@@ -52,9 +63,11 @@ function TaskForm({
     const today = new Date();
 
     const year = today.getFullYear();
+
     const month = String(
       today.getMonth() + 1
     ).padStart(2, "0");
+
     const day = String(
       today.getDate()
     ).padStart(2, "0");
@@ -122,7 +135,10 @@ function TaskForm({
           setCategories(
             finalCategories
           );
-          setCategory(task.category);
+
+          setCategory(
+            task.category
+          );
         } else {
           // Keep old category visible
           // even if deleted later
@@ -134,7 +150,9 @@ function TaskForm({
             ...finalCategories,
           ]);
 
-          setCategory(task.category);
+          setCategory(
+            task.category
+          );
         }
       } else {
         setCategories(
@@ -174,18 +192,32 @@ function TaskForm({
 
   useEffect(() => {
     if (task) {
-      setTitle(task.title || "");
+      setTitle(
+        task.title || ""
+      );
+
       setDescription(
         task.description || ""
       );
+
       setCategory(
         task.category || "General"
       );
+
       setPriority(
         task.priority || "medium"
       );
+
       setDueDate(
         task.due_date || ""
+      );
+
+      setRecurrenceType(
+        task.recurrence_type || "none"
+      );
+
+      setRecurrenceEndDate(
+        task.recurrence_end_date || ""
       );
     } else {
       setTitle("");
@@ -193,6 +225,12 @@ function TaskForm({
       setCategory("General");
       setPriority("medium");
       setDueDate("");
+
+      setRecurrenceType(
+        "none"
+      );
+
+      setRecurrenceEndDate("");
     }
 
     setError("");
@@ -248,6 +286,38 @@ function TaskForm({
     e
   ) => {
     setDueDate(e.target.value);
+    setError("");
+  };
+
+  // =========================
+  // RECURRENCE CHANGE
+  // =========================
+
+  const handleRecurrenceChange = (
+    e
+  ) => {
+    const value = e.target.value;
+
+    setRecurrenceType(value);
+    setError("");
+
+    // Clear end date when recurrence
+    // is disabled
+    if (value === "none") {
+      setRecurrenceEndDate("");
+    }
+  };
+
+  // =========================
+  // RECURRENCE END DATE
+  // =========================
+
+  const handleRecurrenceEndDateChange = (
+    e
+  ) => {
+    setRecurrenceEndDate(
+      e.target.value
+    );
     setError("");
   };
 
@@ -346,6 +416,35 @@ function TaskForm({
     }
 
     // =========================
+    // RECURRENCE VALIDATION
+    // =========================
+
+    if (
+      recurrenceType !== "none" &&
+      !dueDate
+    ) {
+      setError(
+        "Please select a due date for a recurring task."
+      );
+      return;
+    }
+
+    if (
+      recurrenceType !== "none" &&
+      recurrenceEndDate
+    ) {
+      if (
+        recurrenceEndDate <
+        dueDate
+      ) {
+        setError(
+          "Repeat until date cannot be before the due date."
+        );
+        return;
+      }
+    }
+
+    // =========================
     // SUBMIT
     // =========================
 
@@ -362,13 +461,28 @@ function TaskForm({
             .from("tasks")
             .update({
               title: trimmedTitle,
+
               description:
                 trimmedDescription ||
                 null,
+
               category,
+
               priority,
+
               due_date:
                 dueDate || null,
+
+              recurrence_type:
+                recurrenceType,
+
+              recurrence_end_date:
+                recurrenceType !==
+                "none"
+                  ? recurrenceEndDate ||
+                    null
+                  : null,
+
               updated_at:
                 new Date().toISOString(),
             })
@@ -401,14 +515,29 @@ function TaskForm({
           .insert([
             {
               user_id: user.id,
+
               title: trimmedTitle,
+
               description:
                 trimmedDescription ||
                 null,
+
               category,
+
               priority,
+
               due_date:
                 dueDate || null,
+
+              recurrence_type:
+                recurrenceType,
+
+              recurrence_end_date:
+                recurrenceType !==
+                "none"
+                  ? recurrenceEndDate ||
+                    null
+                  : null,
             },
           ])
           .select()
@@ -443,15 +572,16 @@ function TaskForm({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 px-4 py-6 backdrop-blur-sm">
 
-      <div className="my-auto w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
+      <div className="my-auto w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl sm:p-6">
 
         {/* ========================= */}
         {/* HEADER */}
         {/* ========================= */}
 
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex items-start justify-between gap-4">
 
-          <div>
+          <div className="min-w-0">
+
             <h2 className="text-2xl font-bold text-white">
               {isEditing
                 ? "Edit Task"
@@ -463,13 +593,14 @@ function TaskForm({
                 ? "Update your task details."
                 : "Create a task and stay productive."}
             </p>
+
           </div>
 
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-slate-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             title="Close"
           >
             <FiX size={22} />
@@ -712,10 +843,109 @@ function TaskForm({
           </div>
 
           {/* ========================= */}
+          {/* RECURRENCE */}
+          {/* ========================= */}
+
+          <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+
+            <div className="mb-3 flex items-center gap-2">
+
+              <FiRepeat
+                size={18}
+                className="text-blue-400"
+              />
+
+              <label className="text-sm font-medium text-slate-300">
+                Recurrence
+              </label>
+
+            </div>
+
+            <select
+              value={recurrenceType}
+              onChange={
+                handleRecurrenceChange
+              }
+              disabled={loading}
+              className="w-full rounded-xl border border-slate-700 bg-slate-800/70 px-4 py-3 text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+
+              <option value="none">
+                Does not repeat
+              </option>
+
+              <option value="daily">
+                Daily
+              </option>
+
+              <option value="weekly">
+                Weekly
+              </option>
+
+              <option value="monthly">
+                Monthly
+              </option>
+
+            </select>
+
+            {recurrenceType !==
+              "none" && (
+              <div className="mt-4">
+
+                <label className="mb-2 block text-sm font-medium text-slate-300">
+                  Repeat Until
+                  <span className="ml-1 text-xs font-normal text-slate-500">
+                    (optional)
+                  </span>
+                </label>
+
+                <div className="relative">
+
+                  <FiCalendar
+                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
+                    size={18}
+                  />
+
+                  <input
+                    type="date"
+                    value={
+                      recurrenceEndDate
+                    }
+                    min={
+                      dueDate ||
+                      getTodayDate()
+                    }
+                    onChange={
+                      handleRecurrenceEndDateChange
+                    }
+                    disabled={loading}
+                    className="w-full rounded-xl border border-slate-700 bg-slate-800/70 py-3 pl-11 pr-4 text-white outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                  />
+
+                </div>
+
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  The task will repeat{" "}
+                  {recurrenceType ===
+                  "daily"
+                    ? "every day"
+                    : recurrenceType ===
+                      "weekly"
+                    ? "every week"
+                    : "every month"}
+                  .
+                </p>
+
+              </div>
+            )}
+
+          </div>
+
+          {/* ========================= */}
           {/* BUTTONS */}
           {/* ========================= */}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
 
             <button
               type="button"

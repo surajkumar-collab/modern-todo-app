@@ -3,6 +3,7 @@ import {
   FiClock,
   FiTrash2,
   FiEdit3,
+  FiRepeat,
 } from "react-icons/fi";
 
 function TaskItem({
@@ -13,14 +14,45 @@ function TaskItem({
   formatDueDate,
   getDueDateStatus,
 }) {
-  const dueDateStatus = getDueDateStatus(task);
+  const dueDateStatus =
+    getDueDateStatus(task);
+
+  // =========================
+  // RECURRENCE LABEL
+  // =========================
+
+  const getRecurrenceLabel = () => {
+    if (
+      !task.recurrence_type ||
+      task.recurrence_type === "none"
+    ) {
+      return null;
+    }
+
+    if (task.recurrence_type === "daily") {
+      return "Daily";
+    }
+
+    if (task.recurrence_type === "weekly") {
+      return "Weekly";
+    }
+
+    if (task.recurrence_type === "monthly") {
+      return "Monthly";
+    }
+
+    return null;
+  };
+
+  const recurrenceLabel =
+    getRecurrenceLabel();
 
   return (
     <div
-      className={`group rounded-2xl border p-5 transition-all duration-300 ${
+      className={`group rounded-2xl border p-5 transition ${
         task.completed
           ? "border-green-500/20 bg-green-500/5"
-          : "border-slate-800 bg-slate-900/60 hover:-translate-y-[1px] hover:border-blue-500/30 hover:bg-slate-900"
+          : "border-slate-800 bg-slate-900/60 hover:border-blue-500/30"
       }`}
     >
       <div className="flex items-start gap-4">
@@ -32,30 +64,20 @@ function TaskItem({
         <button
           type="button"
           onClick={() => onToggle(task)}
-          aria-label={
+          className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
             task.completed
-              ? "Mark task as active"
-              : "Mark task as completed"
-          }
+              ? "border-green-500 bg-green-500 text-white"
+              : "border-slate-600 hover:border-blue-500"
+          }`}
           title={
             task.completed
               ? "Mark as active"
               : "Mark as completed"
           }
-          className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
-            task.completed
-              ? "scale-105 border-green-500 bg-green-500 text-white shadow-lg shadow-green-500/20"
-              : "border-slate-600 text-transparent hover:scale-105 hover:border-blue-500 hover:bg-blue-500/10"
-          }`}
         >
-          <FiCheckSquare
-            size={16}
-            className={`transition-all duration-200 ${
-              task.completed
-                ? "scale-100 opacity-100"
-                : "scale-75 opacity-0"
-            }`}
-          />
+          {task.completed && (
+            <FiCheckSquare size={16} />
+          )}
         </button>
 
         {/* ========================= */}
@@ -68,8 +90,10 @@ function TaskItem({
 
           <div className="flex flex-wrap items-center gap-2">
 
+            {/* TITLE */}
+
             <h4
-              className={`break-words text-base font-semibold transition-all duration-300 ${
+              className={`text-base font-semibold ${
                 task.completed
                   ? "text-slate-500 line-through"
                   : "text-white"
@@ -78,10 +102,12 @@ function TaskItem({
               {task.title}
             </h4>
 
+            {/* ========================= */}
             {/* PRIORITY */}
+            {/* ========================= */}
 
             <span
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                 task.priority === "high"
                   ? "bg-red-500/10 text-red-400"
                   : task.priority === "medium"
@@ -92,11 +118,25 @@ function TaskItem({
               {task.priority}
             </span>
 
+            {/* ========================= */}
             {/* CATEGORY */}
+            {/* ========================= */}
 
             <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400">
               {task.category}
             </span>
+
+            {/* ========================= */}
+            {/* RECURRENCE */}
+            {/* ========================= */}
+
+            {recurrenceLabel && (
+              <span className="flex items-center gap-1 rounded-full bg-purple-500/10 px-2.5 py-1 text-xs font-medium text-purple-400">
+                <FiRepeat size={12} />
+
+                {recurrenceLabel}
+              </span>
+            )}
 
           </div>
 
@@ -105,13 +145,7 @@ function TaskItem({
           {/* ========================= */}
 
           {task.description && (
-            <p
-              className={`mt-2 break-words text-sm transition-colors duration-300 ${
-                task.completed
-                  ? "text-slate-600"
-                  : "text-slate-400"
-              }`}
-            >
+            <p className="mt-2 text-sm text-slate-400">
               {task.description}
             </p>
           )}
@@ -146,39 +180,49 @@ function TaskItem({
             </div>
           )}
 
+          {/* ========================= */}
+          {/* REPEAT UNTIL */}
+          {/* ========================= */}
+
+          {recurrenceLabel &&
+            task.recurrence_end_date && (
+              <p className="mt-2 text-xs text-slate-600">
+                Repeats until{" "}
+                {formatDueDate(
+                  task.recurrence_end_date
+                )}
+              </p>
+            )}
+
         </div>
 
         {/* ========================= */}
-        {/* ACTIONS */}
+        {/* EDIT */}
         {/* ========================= */}
 
-        <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onEdit(task)}
+          className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-blue-500/10 hover:text-blue-400"
+          title="Edit task"
+        >
+          <FiEdit3 size={18} />
+        </button>
 
-          {/* EDIT */}
+        {/* ========================= */}
+        {/* DELETE */}
+        {/* ========================= */}
 
-          <button
-            type="button"
-            onClick={() => onEdit(task)}
-            aria-label="Edit task"
-            title="Edit task"
-            className="rounded-lg p-2 text-slate-400 transition-all duration-200 hover:bg-blue-500/10 hover:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-          >
-            <FiEdit3 size={18} />
-          </button>
-
-          {/* DELETE */}
-
-          <button
-            type="button"
-            onClick={() => onDelete(task)}
-            aria-label="Delete task"
-            title="Delete task"
-            className="rounded-lg p-2 text-slate-500 opacity-70 transition-all duration-200 hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/30 group-hover:opacity-100 sm:opacity-0"
-          >
-            <FiTrash2 size={18} />
-          </button>
-
-        </div>
+        <button
+          type="button"
+          onClick={() =>
+            onDelete(task.id)
+          }
+          className="shrink-0 rounded-lg p-2 text-slate-600 opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+          title="Delete task"
+        >
+          <FiTrash2 size={18} />
+        </button>
 
       </div>
     </div>
