@@ -17,43 +17,59 @@ function TaskItem({
 
   return (
     <div
-      className={`group rounded-2xl border p-5 transition ${
+      className={`group rounded-2xl border p-5 transition-all duration-300 ${
         task.completed
           ? "border-green-500/20 bg-green-500/5"
-          : "border-slate-800 bg-slate-900/60 hover:border-blue-500/30"
+          : "border-slate-800 bg-slate-900/60 hover:-translate-y-[1px] hover:border-blue-500/30 hover:bg-slate-900"
       }`}
     >
       <div className="flex items-start gap-4">
 
-        {/* ================= CHECKBOX ================= */}
+        {/* ========================= */}
+        {/* CHECKBOX */}
+        {/* ========================= */}
 
         <button
           type="button"
           onClick={() => onToggle(task)}
-          className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition ${
+          aria-label={
             task.completed
-              ? "border-green-500 bg-green-500 text-white"
-              : "border-slate-600 hover:border-blue-500"
-          }`}
+              ? "Mark task as active"
+              : "Mark task as completed"
+          }
           title={
             task.completed
               ? "Mark as active"
               : "Mark as completed"
           }
+          className={`mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30 ${
+            task.completed
+              ? "scale-105 border-green-500 bg-green-500 text-white shadow-lg shadow-green-500/20"
+              : "border-slate-600 text-transparent hover:scale-105 hover:border-blue-500 hover:bg-blue-500/10"
+          }`}
         >
-          {task.completed && <FiCheckSquare size={16} />}
+          <FiCheckSquare
+            size={16}
+            className={`transition-all duration-200 ${
+              task.completed
+                ? "scale-100 opacity-100"
+                : "scale-75 opacity-0"
+            }`}
+          />
         </button>
 
-        {/* ================= CONTENT ================= */}
+        {/* ========================= */}
+        {/* CONTENT */}
+        {/* ========================= */}
 
         <div className="min-w-0 flex-1">
 
-          {/* Title + Badges */}
+          {/* TITLE + BADGES */}
 
           <div className="flex flex-wrap items-center gap-2">
 
             <h4
-              className={`text-base font-semibold ${
+              className={`break-words text-base font-semibold transition-all duration-300 ${
                 task.completed
                   ? "text-slate-500 line-through"
                   : "text-white"
@@ -62,10 +78,10 @@ function TaskItem({
               {task.title}
             </h4>
 
-            {/* Priority */}
+            {/* PRIORITY */}
 
             <span
-              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${
                 task.priority === "high"
                   ? "bg-red-500/10 text-red-400"
                   : task.priority === "medium"
@@ -76,7 +92,7 @@ function TaskItem({
               {task.priority}
             </span>
 
-            {/* Category */}
+            {/* CATEGORY */}
 
             <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400">
               {task.category}
@@ -84,20 +100,31 @@ function TaskItem({
 
           </div>
 
-          {/* Description */}
+          {/* ========================= */}
+          {/* DESCRIPTION */}
+          {/* ========================= */}
 
           {task.description && (
-            <p className="mt-2 text-sm text-slate-400">
+            <p
+              className={`mt-2 break-words text-sm transition-colors duration-300 ${
+                task.completed
+                  ? "text-slate-600"
+                  : "text-slate-400"
+              }`}
+            >
               {task.description}
             </p>
           )}
 
-          {/* Due Date */}
+          {/* ========================= */}
+          {/* DUE DATE */}
+          {/* ========================= */}
 
           {task.due_date && (
             <div
-              className={`mt-3 flex items-center gap-2 text-xs ${
-                dueDateStatus?.className || "text-slate-500"
+              className={`mt-3 flex flex-wrap items-center gap-2 text-xs ${
+                dueDateStatus?.className ||
+                "text-slate-500"
               }`}
             >
               <FiClock size={14} />
@@ -111,34 +138,47 @@ function TaskItem({
               </span>
 
               <span>
-                Due: {formatDueDate(task.due_date)}
+                Due:{" "}
+                {formatDueDate(
+                  task.due_date
+                )}
               </span>
             </div>
           )}
 
         </div>
 
-        {/* ================= EDIT ================= */}
+        {/* ========================= */}
+        {/* ACTIONS */}
+        {/* ========================= */}
 
-        <button
-          type="button"
-          onClick={() => onEdit(task)}
-          className="rounded-lg p-2 text-slate-400 transition hover:bg-blue-500/10 hover:text-blue-400"
-          title="Edit task"
-        >
-          <FiEdit3 size={18} />
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
 
-        {/* ================= DELETE ================= */}
+          {/* EDIT */}
 
-        <button
-          type="button"
-          onClick={() => onDelete(task.id)}
-          className="rounded-lg p-2 text-slate-600 opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
-          title="Delete task"
-        >
-          <FiTrash2 size={18} />
-        </button>
+          <button
+            type="button"
+            onClick={() => onEdit(task)}
+            aria-label="Edit task"
+            title="Edit task"
+            className="rounded-lg p-2 text-slate-400 transition-all duration-200 hover:bg-blue-500/10 hover:text-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          >
+            <FiEdit3 size={18} />
+          </button>
+
+          {/* DELETE */}
+
+          <button
+            type="button"
+            onClick={() => onDelete(task)}
+            aria-label="Delete task"
+            title="Delete task"
+            className="rounded-lg p-2 text-slate-500 opacity-70 transition-all duration-200 hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/30 group-hover:opacity-100 sm:opacity-0"
+          >
+            <FiTrash2 size={18} />
+          </button>
+
+        </div>
 
       </div>
     </div>
