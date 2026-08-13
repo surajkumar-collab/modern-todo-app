@@ -88,14 +88,6 @@ function Dashboard({ user, onLogout }) {
         );
 
   // =========================
-  // OPEN CATEGORY MANAGER
-  // =========================
-
-  const openCategoryManager = () => {
-    setShowCategoryManager(true);
-  };
-
-  // =========================
   // CLOSE CATEGORY MANAGER
   // =========================
 
@@ -123,13 +115,13 @@ function Dashboard({ user, onLogout }) {
       {/* MAIN */}
       {/* ========================= */}
 
-      <main className="mx-auto max-w-7xl px-6 py-8 lg:px-10">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-8">
 
         {/* ========================= */}
         {/* WELCOME */}
         {/* ========================= */}
 
-        <section className="mb-10">
+        <section className="mb-8 sm:mb-10">
 
           <p className="text-sm font-medium text-blue-400">
             YOUR PRODUCTIVITY HUB
@@ -139,7 +131,7 @@ function Dashboard({ user, onLogout }) {
             Good to see you, {userName} 👋
           </h2>
 
-          <p className="mt-2 text-slate-400">
+          <p className="mt-2 text-sm text-slate-400 sm:text-base">
             Stay focused and get things done.
           </p>
 
@@ -149,7 +141,7 @@ function Dashboard({ user, onLogout }) {
         {/* STATS */}
         {/* ========================= */}
 
-        <section className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
 
           <StatsCard
             title="Total Tasks"
@@ -184,11 +176,12 @@ function Dashboard({ user, onLogout }) {
         {/* PROGRESS */}
         {/* ========================= */}
 
-        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-6">
+        <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:mt-5 sm:p-6">
 
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
+
               <p className="text-sm font-medium text-slate-400">
                 Overall Progress
               </p>
@@ -196,6 +189,7 @@ function Dashboard({ user, onLogout }) {
               <p className="mt-1 text-sm text-slate-500">
                 {stats.completed} of {stats.total} tasks completed
               </p>
+
             </div>
 
             <div className="text-2xl font-bold text-white">
@@ -204,7 +198,7 @@ function Dashboard({ user, onLogout }) {
 
           </div>
 
-          <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
+          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-800 sm:mt-5">
 
             <div
               className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-500"
@@ -221,11 +215,16 @@ function Dashboard({ user, onLogout }) {
         {/* TASK SECTION */}
         {/* ========================= */}
 
-        <section className="mt-10">
+        <section className="mt-8 sm:mt-10">
 
-          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          {/* ========================= */}
+          {/* TASK HEADER */}
+          {/* ========================= */}
+
+          <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
 
             <div>
+
               <h3 className="text-xl font-bold">
                 My Tasks
               </h3>
@@ -233,22 +232,23 @@ function Dashboard({ user, onLogout }) {
               <p className="mt-1 text-sm text-slate-500">
                 Manage your daily tasks.
               </p>
+
             </div>
 
             {/* ========================= */}
             {/* ACTION BUTTONS */}
             {/* ========================= */}
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto lg:flex lg:items-center">
 
               {/* MANAGE CATEGORIES */}
 
               <button
                 type="button"
-                onClick={() => {
-                  setShowCategoryManager(true);
-                }}
-                className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white"
+                onClick={() =>
+                  setShowCategoryManager(true)
+                }
+                className="flex w-full items-center justify-center rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white active:scale-[0.98] lg:w-auto"
               >
                 Manage Categories
               </button>
@@ -257,8 +257,10 @@ function Dashboard({ user, onLogout }) {
 
               <button
                 type="button"
-                onClick={() => setShowTaskForm(true)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-95"
+                onClick={() =>
+                  setShowTaskForm(true)
+                }
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-[0.98] lg:w-auto"
               >
                 <FiPlus size={18} />
                 Add Task
@@ -294,11 +296,15 @@ function Dashboard({ user, onLogout }) {
       {showTaskForm && (
         <TaskForm
           user={user}
-          onClose={() => setShowTaskForm(false)}
+          onClose={() =>
+            setShowTaskForm(false)
+          }
           onTaskCreated={() => {
             setShowTaskForm(false);
 
-            setRefreshKey((prev) => prev + 1);
+            setRefreshKey(
+              (prev) => prev + 1
+            );
 
             addToast(
               "Task created successfully",
@@ -316,11 +322,15 @@ function Dashboard({ user, onLogout }) {
         <TaskForm
           user={user}
           task={editingTask}
-          onClose={() => setEditingTask(null)}
+          onClose={() =>
+            setEditingTask(null)
+          }
           onTaskUpdated={() => {
             setEditingTask(null);
 
-            setRefreshKey((prev) => prev + 1);
+            setRefreshKey(
+              (prev) => prev + 1
+            );
 
             addToast(
               "Task updated successfully",
@@ -337,7 +347,9 @@ function Dashboard({ user, onLogout }) {
       {showCategoryManager && (
         <CategoryManager
           user={user}
-          onClose={closeCategoryManager}
+          onClose={
+            closeCategoryManager
+          }
           addToast={addToast}
         />
       )}
