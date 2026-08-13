@@ -14,6 +14,10 @@ function TaskList({
   searchQuery = "",
   addToast,
 }) {
+  // =========================
+  // STATES
+  // =========================
+
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
 
@@ -39,8 +43,6 @@ function TaskList({
   const [deletingId, setDeletingId] =
     useState(null);
 
-  // Prevent double clicking while task
-  // completion is being processed
   const [togglingId, setTogglingId] =
     useState(null);
 
@@ -57,14 +59,13 @@ function TaskList({
     setLoading(true);
 
     try {
-      const { data, error } =
-        await supabase
-          .from("tasks")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", {
-            ascending: false,
-          });
+      const { data, error } = await supabase
+        .from("tasks")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", {
+          ascending: false,
+        });
 
       if (error) {
         throw error;
@@ -74,16 +75,18 @@ function TaskList({
 
       setTasks(taskData);
 
+      // =========================
+      // UPDATE STATS
+      // =========================
+
       if (onStatsChange) {
         const total = taskData.length;
 
-        const completed =
-          taskData.filter(
-            (task) => task.completed
-          ).length;
+        const completed = taskData.filter(
+          (task) => task.completed
+        ).length;
 
-        const active =
-          total - completed;
+        const active = total - completed;
 
         onStatsChange({
           total,
@@ -92,10 +95,7 @@ function TaskList({
         });
       }
     } catch (error) {
-      console.error(
-        "Fetch tasks error:",
-        error
-      );
+      console.error("Fetch tasks error:", error);
 
       addToast?.(
         "Failed to load tasks",
@@ -119,14 +119,13 @@ function TaskList({
     setCategoriesLoading(true);
 
     try {
-      const { data, error } =
-        await supabase
-          .from("categories")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", {
-            ascending: true,
-          });
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", {
+          ascending: true,
+        });
 
       if (error) {
         throw error;
@@ -160,7 +159,7 @@ function TaskList({
   }, [user?.id, refreshKey]);
 
   // =========================
-  // ADD RECURRENCE DATE
+  // GET NEXT RECURRENCE DATE
   // =========================
 
   const getNextRecurrenceDate = (
@@ -174,24 +173,13 @@ function TaskList({
       return null;
     }
 
-    const [
-      year,
-      month,
-      day,
-    ] = dateString
-      .split("-")
-      .map(Number);
+    const [year, month, day] =
+      dateString.split("-").map(Number);
 
-    if (
-      !year ||
-      !month ||
-      !day
-    ) {
+    if (!year || !month || !day) {
       return null;
     }
 
-    // Work with UTC so timezone changes
-    // do not unexpectedly change the date.
     const currentDate = new Date(
       Date.UTC(
         year,
@@ -200,25 +188,22 @@ function TaskList({
       )
     );
 
-    if (
-      recurrenceType === "daily"
-    ) {
+    // DAILY
+    if (recurrenceType === "daily") {
       currentDate.setUTCDate(
         currentDate.getUTCDate() + 1
       );
     }
 
-    if (
-      recurrenceType === "weekly"
-    ) {
+    // WEEKLY
+    if (recurrenceType === "weekly") {
       currentDate.setUTCDate(
         currentDate.getUTCDate() + 7
       );
     }
 
-    if (
-      recurrenceType === "monthly"
-    ) {
+    // MONTHLY
+    if (recurrenceType === "monthly") {
       const originalDay =
         currentDate.getUTCDate();
 
@@ -227,14 +212,11 @@ function TaskList({
 
       const nextYear =
         currentDate.getUTCFullYear() +
-        Math.floor(
-          nextMonth / 12
-        );
+        Math.floor(nextMonth / 12);
 
       const normalizedMonth =
         nextMonth % 12;
 
-      // Find last day of next month
       const lastDayOfNextMonth =
         new Date(
           Date.UTC(
@@ -283,16 +265,13 @@ function TaskList({
   const createNextRecurringTask = async (
     task
   ) => {
-    // Non-recurring task
     if (
       !task.recurrence_type ||
-      task.recurrence_type ===
-        "none"
+      task.recurrence_type === "none"
     ) {
       return null;
     }
 
-    // A recurring task needs a due date
     if (!task.due_date) {
       return null;
     }
@@ -308,7 +287,7 @@ function TaskList({
     }
 
     // =========================
-    // CHECK RECURRENCE END DATE
+    // CHECK END DATE
     // =========================
 
     if (
@@ -323,38 +302,36 @@ function TaskList({
     // CREATE NEXT TASK
     // =========================
 
-    const { data, error } =
-      await supabase
-        .from("tasks")
-        .insert([
-          {
-            user_id: user.id,
+    const { data, error } = await supabase
+      .from("tasks")
+      .insert([
+        {
+          user_id: user.id,
 
-            title: task.title,
+          title: task.title,
 
-            description:
-              task.description || null,
+          description:
+            task.description || null,
 
-            completed: false,
+          completed: false,
 
-            priority:
-              task.priority || "medium",
+          priority:
+            task.priority || "medium",
 
-            category:
-              task.category || "General",
+          category:
+            task.category || "General",
 
-            due_date: nextDueDate,
+          due_date: nextDueDate,
 
-            recurrence_type:
-              task.recurrence_type,
+          recurrence_type:
+            task.recurrence_type,
 
-            recurrence_end_date:
-              task.recurrence_end_date ||
-              null,
-          },
-        ])
-        .select()
-        .single();
+          recurrence_end_date:
+            task.recurrence_end_date || null,
+        },
+      ])
+      .select()
+      .single();
 
     if (error) {
       throw error;
@@ -367,9 +344,7 @@ function TaskList({
   // TOGGLE TASK
   // =========================
 
-  const toggleTask = async (
-    task
-  ) => {
+  const toggleTask = async (task) => {
     if (!user?.id) {
       addToast?.(
         "User session not found",
@@ -405,10 +380,7 @@ function TaskList({
               new Date().toISOString(),
           })
           .eq("id", task.id)
-          .eq(
-            "user_id",
-            user.id
-          )
+          .eq("user_id", user.id)
           .select()
           .single();
 
@@ -429,7 +401,7 @@ function TaskList({
       );
 
       // =========================
-      // COMPLETED
+      // TASK COMPLETED
       // =========================
 
       if (data.completed) {
@@ -439,8 +411,7 @@ function TaskList({
 
         if (
           data.recurrence_type &&
-          data.recurrence_type !==
-            "none"
+          data.recurrence_type !== "none"
         ) {
           try {
             const nextTask =
@@ -498,7 +469,10 @@ function TaskList({
         );
       }
 
-      // Refresh stats and data
+      // =========================
+      // REFRESH DATA + STATS
+      // =========================
+
       await fetchTasks();
     } catch (error) {
       console.error(
@@ -519,9 +493,7 @@ function TaskList({
   // DELETE CLICK
   // =========================
 
-  const handleDeleteClick = (
-    task
-  ) => {
+  const handleDeleteClick = (task) => {
     setTaskToDelete(task);
   };
 
@@ -529,86 +501,75 @@ function TaskList({
   // CONFIRM DELETE
   // =========================
 
-  const handleConfirmDelete =
-    async () => {
-      if (!taskToDelete?.id) {
-        return;
-      }
+  const handleConfirmDelete = async () => {
+    if (!taskToDelete?.id) {
+      return;
+    }
 
-      if (!user?.id) {
-        setTaskToDelete(null);
+    if (!user?.id) {
+      setTaskToDelete(null);
 
-        addToast?.(
-          "User session not found",
-          "error"
-        );
-
-        return;
-      }
-
-      setDeletingId(
-        taskToDelete.id
+      addToast?.(
+        "User session not found",
+        "error"
       );
 
-      try {
-        const { error } =
-          await supabase
-            .from("tasks")
-            .delete()
-            .eq(
-              "id",
-              taskToDelete.id
-            )
-            .eq(
-              "user_id",
-              user.id
-            );
+      return;
+    }
 
-        if (error) {
-          throw error;
-        }
+    setDeletingId(taskToDelete.id);
 
-        setTasks((prevTasks) =>
-          prevTasks.filter(
-            (task) =>
-              task.id !==
-              taskToDelete.id
-          )
-        );
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", taskToDelete.id)
+        .eq("user_id", user.id);
 
-        const deletedTitle =
-          taskToDelete.title;
-
-        setTaskToDelete(null);
-
-        addToast?.(
-          `"${deletedTitle}" deleted successfully`,
-          "success"
-        );
-
-        fetchTasks();
-      } catch (error) {
-        console.error(
-          "Delete task error:",
-          error
-        );
-
-        addToast?.(
-          "Failed to delete task",
-          "error"
-        );
-      } finally {
-        setDeletingId(null);
+      if (error) {
+        throw error;
       }
-    };
+
+      // Remove immediately from UI
+      setTasks((prevTasks) =>
+        prevTasks.filter(
+          (task) =>
+            task.id !== taskToDelete.id
+        )
+      );
+
+      const deletedTitle =
+        taskToDelete.title;
+
+      setTaskToDelete(null);
+
+      addToast?.(
+        `"${deletedTitle}" deleted successfully`,
+        "success"
+      );
+
+      // Refresh stats
+      await fetchTasks();
+    } catch (error) {
+      console.error(
+        "Delete task error:",
+        error
+      );
+
+      addToast?.(
+        "Failed to delete task",
+        "error"
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // =========================
   // DUE DATE STATUS
   // =========================
 
-  const getDueDateStatus = (
-    task
-  ) => {
+  const getDueDateStatus = (task) => {
     if (
       !task.due_date ||
       task.completed
@@ -618,23 +579,13 @@ function TaskList({
 
     const today = new Date();
 
-    today.setHours(
-      0,
-      0,
-      0,
-      0
-    );
+    today.setHours(0, 0, 0, 0);
 
     const dueDate = new Date(
       `${task.due_date}T00:00:00`
     );
 
-    dueDate.setHours(
-      0,
-      0,
-      0,
-      0
-    );
+    dueDate.setHours(0, 0, 0, 0);
 
     const diffTime =
       dueDate.getTime() -
@@ -648,40 +599,38 @@ function TaskList({
     if (diffDays < 0) {
       return {
         label: "Overdue",
-        className:
-          "text-red-400",
+        className: "text-red-400",
       };
     }
 
     if (diffDays === 0) {
       return {
         label: "Due Today",
-        className:
-          "text-yellow-400",
+        className: "text-yellow-400",
       };
     }
 
     if (diffDays === 1) {
       return {
         label: "Due Tomorrow",
-        className:
-          "text-blue-400",
+        className: "text-blue-400",
       };
     }
 
     return {
       label: "Upcoming",
-      className:
-        "text-slate-500",
+      className: "text-slate-500",
     };
   };
 
-    // =========================
+  // =========================
   // FORMAT DATE
   // =========================
 
   const formatDueDate = (dateString) => {
-    if (!dateString) return "";
+    if (!dateString) {
+      return "";
+    }
 
     const [year, month, day] =
       dateString.split("-");
@@ -706,13 +655,21 @@ function TaskList({
   const filteredTasks = tasks
     .filter((task) => {
       const search =
-        searchQuery.toLowerCase().trim();
+        searchQuery
+          .toLowerCase()
+          .trim();
 
       const matchesSearch =
         !search ||
-        task.title?.toLowerCase().includes(search) ||
-        task.description?.toLowerCase().includes(search) ||
-        task.category?.toLowerCase().includes(search);
+        task.title
+          ?.toLowerCase()
+          .includes(search) ||
+        task.description
+          ?.toLowerCase()
+          .includes(search) ||
+        task.category
+          ?.toLowerCase()
+          .includes(search);
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -737,6 +694,10 @@ function TaskList({
       );
     })
     .sort((a, b) => {
+      // =========================
+      // NEWEST
+      // =========================
+
       if (sortBy === "newest") {
         return (
           new Date(b.created_at) -
@@ -744,12 +705,20 @@ function TaskList({
         );
       }
 
+      // =========================
+      // OLDEST
+      // =========================
+
       if (sortBy === "oldest") {
         return (
           new Date(a.created_at) -
           new Date(b.created_at)
         );
       }
+
+      // =========================
+      // PRIORITY
+      // =========================
 
       if (sortBy === "priority") {
         const priorityOrder = {
@@ -759,14 +728,23 @@ function TaskList({
         };
 
         return (
-          priorityOrder[a.priority] -
-          priorityOrder[b.priority]
+          (priorityOrder[a.priority] || 99) -
+          (priorityOrder[b.priority] || 99)
         );
       }
 
+      // =========================
+      // DUE DATE
+      // =========================
+
       if (sortBy === "dueDate") {
-        if (!a.due_date) return 1;
-        if (!b.due_date) return -1;
+        if (!a.due_date) {
+          return 1;
+        }
+
+        if (!b.due_date) {
+          return -1;
+        }
 
         return (
           new Date(a.due_date) -
@@ -812,17 +790,24 @@ function TaskList({
         taskCount={filteredTasks.length}
       />
 
+      {/* NO TASKS */}
+
       {tasks.length === 0 && (
         <EmptyState type="tasks" />
       )}
+
+      {/* SEARCH / FILTER EMPTY */}
 
       {tasks.length > 0 &&
         filteredTasks.length === 0 && (
           <EmptyState type="search" />
         )}
 
+      {/* TASKS */}
+
       {filteredTasks.length > 0 && (
         <div className="space-y-4">
+
           {filteredTasks.map((task) => (
             <TaskItem
               key={task.id}
@@ -831,14 +816,17 @@ function TaskList({
               onEdit={onEditTask}
               onDelete={handleDeleteClick}
               formatDueDate={formatDueDate}
-              getDueDateStatus={getDueDateStatus}
+              getDueDateStatus={
+                getDueDateStatus
+              }
             />
           ))}
+
         </div>
       )}
 
       {/* ========================= */}
-      {/* CONFIRM MODAL */}
+      {/* CONFIRM DELETE MODAL */}
       {/* ========================= */}
 
       <ConfirmModal
@@ -852,7 +840,8 @@ function TaskList({
         confirmText="Delete"
         cancelText="Cancel"
         loading={
-          deletingId === taskToDelete?.id
+          deletingId ===
+          taskToDelete?.id
         }
         onConfirm={handleConfirmDelete}
         onCancel={() => {
@@ -867,4 +856,3 @@ function TaskList({
 }
 
 export default TaskList;
-

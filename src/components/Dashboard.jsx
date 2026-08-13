@@ -6,6 +6,7 @@ import CategoryManager from "./CategoryManager";
 import Navbar from "./Navbar";
 import StatsCard from "./StatsCard";
 import ToastContainer from "./ToastContainer";
+import CalendarView from "./CalendarView";
 
 import {
   FiCheckSquare,
@@ -209,6 +210,14 @@ function Dashboard({ user, onLogout }) {
 
           </div>
 
+        </section>
+
+        {/* ========================= */}
+        {/* CALENDAR */}
+        {/* ========================= */}
+
+        <section className="mt-10">
+          <CalendarView user={user} />
         </section>
 
         {/* ========================= */}
