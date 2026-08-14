@@ -542,10 +542,8 @@ function CalendarView({
                   dateString === selectedDate;
 
                 return (
-                  <button
-                    type="button"
+                  <div
                     key={`${day}-${index}`}
-                    disabled={!day}
                     onClick={() =>
                       handleDateClick(day)
                     }
@@ -553,8 +551,8 @@ function CalendarView({
                       !day
                         ? "cursor-default bg-slate-950/20"
                         : isSelected
-                        ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/50"
-                        : "bg-slate-950/40 hover:bg-slate-900/80"
+                        ? "cursor-pointer bg-blue-500/10 ring-1 ring-inset ring-blue-500/50"
+                        : "cursor-pointer bg-slate-950/40 hover:bg-slate-900/80"
                     }`}
                   >
 
@@ -603,7 +601,10 @@ function CalendarView({
                                   key={task.id}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleEditTask(task);
+
+                                    handleEditTask(
+                                      task
+                                    );
                                   }}
                                   className={`block w-full truncate rounded-lg border px-2 py-1.5 text-left text-[10px] font-medium transition hover:scale-[1.02] ${getPriorityClass(
                                     priority
@@ -636,7 +637,7 @@ function CalendarView({
                         </div>
                       )}
 
-                  </button>
+                  </div>
                 );
               }
             )}
