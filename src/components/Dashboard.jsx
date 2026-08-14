@@ -217,7 +217,13 @@ function Dashboard({ user, onLogout }) {
         {/* ========================= */}
 
         <section className="mt-10">
-          <CalendarView user={user} />
+          <CalendarView user={user} 
+          refreshKey={refreshKey}
+          onEditTask={(task) => {
+            setEditingTask(task);
+          }}
+          addToast={addToast}
+          />
         </section>
 
         {/* ========================= */}

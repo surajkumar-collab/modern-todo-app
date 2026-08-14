@@ -1,14 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
+
 import {
   FiCalendar,
   FiChevronLeft,
   FiChevronRight,
   FiClock,
+  FiEdit3,
 } from "react-icons/fi";
 
 import { supabase } from "../supabaseClient";
 
-function CalendarView({ user }) {
+function CalendarView({
+  user,
+  refreshKey = 0,
+  onEditTask,
+  addToast,
+}) {
   // =====================================================
   // TASKS
   // =====================================================
@@ -35,39 +42,65 @@ function CalendarView({ user }) {
   // =====================================================
 
   useEffect(() => {
-    const fetchTasks = async () => {
+    let isMounted = true;
+
+    const fetchCalendarTasks = async () => {
       if (!user?.id) {
-        setTasks([]);
-        setTasksLoading(false);
+        if (isMounted) {
+          setTasks([]);
+          setTasksLoading(false);
+        }
+
         return;
       }
 
-      setTasksLoading(true);
+      if (isMounted) {
+        setTasksLoading(true);
+      }
 
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("due_date", {
-          ascending: true,
-        });
+      try {
+        const { data, error } = await supabase
+          .from("tasks")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("due_date", {
+            ascending: true,
+          });
 
-      if (error) {
+        if (error) {
+          throw error;
+        }
+
+        if (isMounted) {
+          setTasks(data || []);
+        }
+      } catch (error) {
         console.error(
           "Calendar tasks fetch error:",
           error
         );
 
-        setTasks([]);
-      } else {
-        setTasks(data || []);
-      }
+        if (isMounted) {
+          setTasks([]);
 
-      setTasksLoading(false);
+          addToast?.(
+            "Failed to load calendar tasks",
+            "error"
+          );
+        }
+      } finally {
+        if (isMounted) {
+          setTasksLoading(false);
+        }
+      }
     };
 
-    fetchTasks();
-  }, [user]);
+    fetchCalendarTasks();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, refreshKey]);
 
   // =====================================================
   // YEAR / MONTH
@@ -103,7 +136,7 @@ function CalendarView({ user }) {
   ];
 
   // =====================================================
-  // DAYS IN CURRENT MONTH
+  // DAYS IN MONTH
   // =====================================================
 
   const daysInMonth = new Date(
@@ -113,7 +146,7 @@ function CalendarView({ user }) {
   ).getDate();
 
   // =====================================================
-  // FIRST DAY OF CURRENT MONTH
+  // FIRST DAY OF MONTH
   // =====================================================
 
   const firstDayOfMonth = new Date(
@@ -128,21 +161,24 @@ function CalendarView({ user }) {
 
   const today = new Date();
 
-  const todayString = `${today.getFullYear()}-${String(
-    today.getMonth() + 1
-  ).padStart(2, "0")}-${String(
-    today.getDate()
-  ).padStart(2, "0")}`;
+  const todayString =
+    `${today.getFullYear()}-${String(
+      today.getMonth() + 1
+    ).padStart(2, "0")}-${String(
+      today.getDate()
+    ).padStart(2, "0")}`;
 
   // =====================================================
   // CREATE DATE STRING
   // =====================================================
 
   const createDateString = (day) => {
-    return `${year}-${String(month + 1).padStart(
+    return `${year}-${String(
+      month + 1
+    ).padStart(2, "0")}-${String(day).padStart(
       2,
       "0"
-    )}-${String(day).padStart(2, "0")}`;
+    )}`;
   };
 
   // =====================================================
@@ -150,17 +186,21 @@ function CalendarView({ user }) {
   // =====================================================
 
   const normalizeTaskDate = (date) => {
-    if (!date) return null;
+    if (!date) {
+      return null;
+    }
 
     return String(date).slice(0, 10);
   };
 
   // =====================================================
-  // GET TASKS FOR A PARTICULAR DAY
+  // GET TASKS FOR DAY
   // =====================================================
 
   const getTasksForDay = (day) => {
-    if (!day) return [];
+    if (!day) {
+      return [];
+    }
 
     const dateString = createDateString(day);
 
@@ -176,7 +216,9 @@ function CalendarView({ user }) {
   // =====================================================
 
   const selectedDateTasks = useMemo(() => {
-    if (!selectedDate) return [];
+    if (!selectedDate) {
+      return [];
+    }
 
     return tasks.filter(
       (task) =>
@@ -234,7 +276,11 @@ function CalendarView({ user }) {
   const calendarCells = [];
 
   // Empty cells before first day
-  for (let i = 0; i < firstDayOfMonth; i++) {
+  for (
+    let i = 0;
+    i < firstDayOfMonth;
+    i++
+  ) {
     calendarCells.push(null);
   }
 
@@ -252,7 +298,9 @@ function CalendarView({ user }) {
   // =====================================================
 
   const handleDateClick = (day) => {
-    if (!day) return;
+    if (!day) {
+      return;
+    }
 
     const dateString = createDateString(day);
 
@@ -275,19 +323,51 @@ function CalendarView({ user }) {
     : "";
 
   // =====================================================
-  // PRIORITY STYLE
+  // PRIORITY CLASS
   // =====================================================
 
   const getPriorityClass = (priority) => {
     if (priority === "high") {
-      return "bg-red-500/10 text-red-400 border-red-500/10";
+      return "bg-red-500/10 text-red-400 border-red-500/20";
     }
 
     if (priority === "medium") {
-      return "bg-yellow-500/10 text-yellow-400 border-yellow-500/10";
+      return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
     }
 
-    return "bg-green-500/10 text-green-400 border-green-500/10";
+    return "bg-green-500/10 text-green-400 border-green-500/20";
+  };
+
+  // =====================================================
+  // FORMAT DATE
+  // =====================================================
+
+  const formatDate = (dateString) => {
+    if (!dateString) {
+      return "";
+    }
+
+    return new Date(
+      `${dateString}T00:00:00`
+    ).toLocaleDateString("en-US", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // =====================================================
+  // EDIT TASK
+  // =====================================================
+
+  const handleEditTask = (task) => {
+    if (!task) {
+      return;
+    }
+
+    if (onEditTask) {
+      onEditTask(task);
+    }
   };
 
   // =====================================================
@@ -296,7 +376,7 @@ function CalendarView({ user }) {
 
   if (tasksLoading) {
     return (
-      <section className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/50 p-6">
+      <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 sm:p-6">
 
         <div className="flex items-center gap-4">
 
@@ -318,14 +398,14 @@ function CalendarView({ user }) {
 
         <div className="mt-6 grid grid-cols-7 gap-px overflow-hidden rounded-xl border border-slate-800 bg-slate-800">
 
-          {Array.from({ length: 35 }).map(
-            (_, index) => (
-              <div
-                key={index}
-                className="min-h-[90px] bg-slate-950/80"
-              />
-            )
-          )}
+          {Array.from({
+            length: 35,
+          }).map((_, index) => (
+            <div
+              key={index}
+              className="min-h-[90px] bg-slate-950/80"
+            />
+          ))}
 
         </div>
 
@@ -338,7 +418,7 @@ function CalendarView({ user }) {
   // =====================================================
 
   return (
-    <section className="mt-10 rounded-2xl border border-slate-800 bg-slate-900/50 p-5 sm:p-6">
+    <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 sm:p-6">
 
       {/* ================================================= */}
       {/* HEADER */}
@@ -350,7 +430,7 @@ function CalendarView({ user }) {
 
         <div className="flex items-center gap-4">
 
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
             <FiCalendar size={23} />
           </div>
 
@@ -436,145 +516,151 @@ function CalendarView({ user }) {
       </div>
 
       {/* ================================================= */}
-      {/* CALENDAR */}
+      {/* CALENDAR GRID */}
       {/* ================================================= */}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-800">
+      <div className="overflow-x-auto rounded-2xl border border-slate-800">
 
-        <div className="grid grid-cols-7">
+        <div className="min-w-[760px]">
 
-          {calendarCells.map(
-            (day, index) => {
-              const dateString = day
-                ? createDateString(day)
-                : null;
+          <div className="grid grid-cols-7">
 
-              const dayTasks = day
-                ? getTasksForDay(day)
-                : [];
+            {calendarCells.map(
+              (day, index) => {
+                const dateString = day
+                  ? createDateString(day)
+                  : null;
 
-              const isToday =
-                dateString === todayString;
+                const dayTasks = day
+                  ? getTasksForDay(day)
+                  : [];
 
-              const isSelected =
-                dateString === selectedDate;
+                const isToday =
+                  dateString === todayString;
 
-              return (
-                <button
-                  type="button"
-                  key={`${day}-${index}`}
-                  disabled={!day}
-                  onClick={() =>
-                    handleDateClick(day)
-                  }
-                  className={`relative min-h-[105px] border-b border-r border-slate-800/80 p-2 text-left transition sm:min-h-[125px] sm:p-3 ${
-                    !day
-                      ? "cursor-default bg-slate-950/20"
-                      : isSelected
-                      ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/50"
-                      : "bg-slate-950/40 hover:bg-slate-900/80"
-                  }`}
-                >
+                const isSelected =
+                  dateString === selectedDate;
 
-                  {/* DAY */}
+                return (
+                  <button
+                    type="button"
+                    key={`${day}-${index}`}
+                    disabled={!day}
+                    onClick={() =>
+                      handleDateClick(day)
+                    }
+                    className={`relative min-h-[125px] border-b border-r border-slate-800/80 p-3 text-left transition ${
+                      !day
+                        ? "cursor-default bg-slate-950/20"
+                        : isSelected
+                        ? "bg-blue-500/10 ring-1 ring-inset ring-blue-500/50"
+                        : "bg-slate-950/40 hover:bg-slate-900/80"
+                    }`}
+                  >
 
-                  {day && (
-                    <div className="flex items-center justify-between">
+                    {/* DAY NUMBER */}
 
-                      <span
-                        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
-                          isToday
-                            ? "bg-blue-500 text-white"
-                            : isSelected
-                            ? "bg-blue-500/20 text-blue-300"
-                            : "text-slate-400"
-                        }`}
-                      >
-                        {day}
-                      </span>
+                    {day && (
+                      <div className="flex items-center justify-between">
 
-                      {dayTasks.length > 0 && (
-                        <span className="text-[10px] font-medium text-slate-600">
-                          {dayTasks.length}
+                        <span
+                          className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                            isToday
+                              ? "bg-blue-500 text-white"
+                              : isSelected
+                              ? "bg-blue-500/20 text-blue-300"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {day}
                         </span>
-                      )}
 
-                    </div>
-                  )}
-
-                  {/* TASKS */}
-
-                  {day &&
-                    dayTasks.length > 0 && (
-                      <div className="mt-3 space-y-1.5">
-
-                        {dayTasks
-                          .slice(0, 3)
-                          .map((task) => {
-
-                            const priority =
-                              task.priority ||
-                              "medium";
-
-                            return (
-                              <div
-                                key={task.id}
-                                className={`truncate rounded-lg border px-2 py-1.5 text-[10px] font-medium ${getPriorityClass(
-                                  priority
-                                )} ${
-                                  task.completed
-                                    ? "opacity-50 line-through"
-                                    : ""
-                                }`}
-                                title={task.title}
-                              >
-
-                                <span className="mr-1">
-                                  •
-                                </span>
-
-                                {task.title}
-
-                              </div>
-                            );
-                          })}
-
-                        {dayTasks.length >
-                          3 && (
-                          <p className="px-1 text-[10px] font-medium text-slate-600">
-                            +
-                            {dayTasks.length -
-                              3}{" "}
-                            more
-                          </p>
+                        {dayTasks.length > 0 && (
+                          <span className="text-[10px] font-medium text-slate-600">
+                            {dayTasks.length}
+                          </span>
                         )}
 
                       </div>
                     )}
 
-                </button>
-              );
-            }
-          )}
+                    {/* TASK PREVIEWS */}
+
+                    {day &&
+                      dayTasks.length > 0 && (
+                        <div className="mt-3 space-y-1.5">
+
+                          {dayTasks
+                            .slice(0, 3)
+                            .map((task) => {
+                              const priority =
+                                task.priority ||
+                                "medium";
+
+                              return (
+                                <button
+                                  type="button"
+                                  key={task.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditTask(task);
+                                  }}
+                                  className={`block w-full truncate rounded-lg border px-2 py-1.5 text-left text-[10px] font-medium transition hover:scale-[1.02] ${getPriorityClass(
+                                    priority
+                                  )} ${
+                                    task.completed
+                                      ? "opacity-50 line-through"
+                                      : ""
+                                  }`}
+                                  title={`Edit: ${task.title}`}
+                                >
+                                  <span className="mr-1">
+                                    •
+                                  </span>
+
+                                  {task.title}
+                                </button>
+                              );
+                            })}
+
+                          {dayTasks.length >
+                            3 && (
+                            <div className="text-[10px] text-slate-600">
+                              +
+                              {dayTasks.length -
+                                3}{" "}
+                              more
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+
+                  </button>
+                );
+              }
+            )}
+
+          </div>
 
         </div>
 
       </div>
 
       {/* ================================================= */}
-      {/* SELECTED DATE */}
+      {/* SELECTED DATE DETAILS */}
       {/* ================================================= */}
 
       {selectedDate && (
-        <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/60 p-5">
+        <div className="mt-6">
 
           {/* HEADER */}
 
-          <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
 
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
+              <p className="text-sm font-medium text-blue-400">
                 Selected Date
               </p>
 
@@ -584,7 +670,7 @@ function CalendarView({ user }) {
 
             </div>
 
-            <span className="w-fit rounded-full bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-400">
+            <span className="w-fit rounded-full border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs font-medium text-slate-400">
               {selectedDateTasks.length}{" "}
               {selectedDateTasks.length ===
               1
@@ -615,14 +701,12 @@ function CalendarView({ user }) {
 
             </div>
           ) : (
-
             /* TASK DETAILS */
 
             <div className="space-y-3">
 
               {selectedDateTasks.map(
                 (task) => {
-
                   const priority =
                     task.priority ||
                     "medium";
@@ -639,7 +723,7 @@ function CalendarView({ user }) {
 
                       <div className="flex items-start gap-3">
 
-                        {/* STATUS */}
+                        {/* STATUS DOT */}
 
                         <div
                           className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${
@@ -674,7 +758,7 @@ function CalendarView({ user }) {
                             {/* PRIORITY */}
 
                             <span
-                              className={`rounded-full px-2.5 py-1 text-[10px] font-semibold capitalize ${getPriorityClass(
+                              className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold capitalize ${getPriorityClass(
                                 priority
                               )}`}
                             >
@@ -685,7 +769,9 @@ function CalendarView({ user }) {
 
                             {task.category && (
                               <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-[10px] font-medium text-blue-400">
-                                {task.category}
+                                {
+                                  task.category
+                                }
                               </span>
                             )}
 
@@ -724,15 +810,8 @@ function CalendarView({ user }) {
 
                             <span>
                               Due{" "}
-                              {new Date(
-                                `${selectedDate}T00:00:00`
-                              ).toLocaleDateString(
-                                "en-US",
-                                {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                }
+                              {formatDate(
+                                task.due_date
                               )}
                             </span>
 
@@ -743,18 +822,33 @@ function CalendarView({ user }) {
                           {task.recurrence_end_date && (
                             <p className="mt-1 text-xs text-slate-600">
                               Repeats until{" "}
-                              {new Date(
-                                `${task.recurrence_end_date}T00:00:00`
-                              ).toLocaleDateString(
-                                "en-US",
-                                {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                }
+                              {formatDate(
+                                task.recurrence_end_date
                               )}
                             </p>
                           )}
+
+                          {/* EDIT */}
+
+                          <div className="mt-4">
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleEditTask(
+                                  task
+                                )
+                              }
+                              className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-400 transition hover:border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-400"
+                            >
+                              <FiEdit3
+                                size={14}
+                              />
+
+                              Edit Task
+                            </button>
+
+                          </div>
 
                         </div>
 
