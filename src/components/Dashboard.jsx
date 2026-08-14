@@ -7,6 +7,7 @@ import Navbar from "./Navbar";
 import StatsCard from "./StatsCard";
 import ToastContainer from "./ToastContainer";
 import CalendarView from "./CalendarView";
+import Analytics from "./Analytics";
 
 import {
   FiCheckSquare,
@@ -36,6 +37,8 @@ function Dashboard({ user, onLogout }) {
     active: 0,
     completed: 0,
   });
+
+  const [analyticsTasks, setAnalyticsTasks] = useState([]);
 
   // =========================
   // TOAST
@@ -212,6 +215,13 @@ function Dashboard({ user, onLogout }) {
 
         </section>
 
+
+        {/* ========================= */}
+        {/* PRODUCTIVITY ANALYTICS */}
+        {/* ========================= */}
+
+        <Analytics tasks={analyticsTasks} />
+
         {/* ========================= */}
         {/* CALENDAR */}
         {/* ========================= */}
@@ -294,6 +304,7 @@ function Dashboard({ user, onLogout }) {
             refreshKey={refreshKey}
             searchQuery={searchQuery}
             onStatsChange={setStats}
+            onTasksChange={setAnalyticsTasks}
             onEditTask={(task) => {
               setEditingTask(task);
             }}

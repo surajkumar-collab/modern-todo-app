@@ -10,6 +10,7 @@ function TaskList({
   user,
   refreshKey = 0,
   onStatsChange,
+  onTasksChange,
   onEditTask,
   searchQuery = "",
   addToast,
@@ -74,6 +75,10 @@ function TaskList({
       const taskData = data || [];
 
       setTasks(taskData);
+
+      if (onTasksChange) {
+        onTasksChange(taskData);
+      }
 
       // =========================
       // UPDATE STATS
