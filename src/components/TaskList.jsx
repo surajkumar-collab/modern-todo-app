@@ -671,13 +671,34 @@ function TaskList({
           ?.toLowerCase()
           .includes(search);
 
+      const today = new Date();
+
+      today.setHours(0, 0, 0, 0);
+
+      const matchesToday =
+        statusFilter === "today" &&
+        task.due_date &&
+        !task.completed &&
+        new Date(
+          `${task.due_date}T00:00:00`
+        ).getTime() === today.getTime();
+
+      const matchesOverdue =
+        statusFilter === "overdue" &&
+        task.due_date &&
+        !task.completed &&
+        new Date(
+          `${task.due_date}T00:00:00`
+        ) < today;
+
       const matchesStatus =
         statusFilter === "all" ||
         (statusFilter === "active" &&
           !task.completed) ||
         (statusFilter === "completed" &&
-          task.completed);
-
+          task.completed) ||
+        matchesToday ||
+        matchesOverdue;
       const matchesCategory =
         categoryFilter === "all" ||
         task.category === categoryFilter;

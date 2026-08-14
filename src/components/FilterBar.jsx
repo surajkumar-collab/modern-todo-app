@@ -63,6 +63,14 @@ function FilterBar({
             <option value="completed">
               Completed
             </option>
+
+            <option value="today">
+              Today
+            </option>
+
+            <option value="overdue">
+              Overdue
+            </option>
           </select>
 
           {/* ========================= */}
