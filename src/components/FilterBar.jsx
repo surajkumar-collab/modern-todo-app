@@ -11,6 +11,27 @@ function FilterBar({
   categoriesLoading,
   taskCount,
 }) {
+  // =========================
+  // CHECK ACTIVE FILTERS
+  // =========================
+
+  const hasActiveFilters =
+    statusFilter !== "all" ||
+    categoryFilter !== "all" ||
+    priorityFilter !== "all" ||
+    sortBy !== "newest";
+
+  // =========================
+  // CLEAR ALL FILTERS
+  // =========================
+
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setCategoryFilter("all");
+    setPriorityFilter("all");
+    setSortBy("newest");
+  };
+
   return (
     <div className="mb-6 w-full">
 
@@ -23,14 +44,10 @@ function FilterBar({
         {/* RESULT COUNT */}
 
         <div className="flex items-center justify-between lg:justify-start">
-
           <span className="text-sm font-medium text-slate-500">
             {taskCount}{" "}
-            {taskCount === 1
-              ? "task"
-              : "tasks"}
+            {taskCount === 1 ? "task" : "tasks"}
           </span>
-
         </div>
 
         {/* ========================= */}
@@ -46,9 +63,7 @@ function FilterBar({
           <select
             value={statusFilter}
             onChange={(e) =>
-              setStatusFilter(
-                e.target.value
-              )
+              setStatusFilter(e.target.value)
             }
             className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition hover:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 lg:w-auto"
           >
@@ -80,9 +95,7 @@ function FilterBar({
           <select
             value={categoryFilter}
             onChange={(e) =>
-              setCategoryFilter(
-                e.target.value
-              )
+              setCategoryFilter(e.target.value)
             }
             disabled={categoriesLoading}
             className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition hover:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-60 lg:w-auto"
@@ -93,16 +106,14 @@ function FilterBar({
                 : "All Categories"}
             </option>
 
-            {categories.map(
-              (category) => (
-                <option
-                  key={category.id}
-                  value={category.name}
-                >
-                  {category.name}
-                </option>
-              )
-            )}
+            {categories.map((category) => (
+              <option
+                key={category.id}
+                value={category.name}
+              >
+                {category.name}
+              </option>
+            ))}
           </select>
 
           {/* ========================= */}
@@ -112,9 +123,7 @@ function FilterBar({
           <select
             value={priorityFilter}
             onChange={(e) =>
-              setPriorityFilter(
-                e.target.value
-              )
+              setPriorityFilter(e.target.value)
             }
             className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition hover:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 lg:w-auto"
           >
@@ -142,9 +151,7 @@ function FilterBar({
           <select
             value={sortBy}
             onChange={(e) =>
-              setSortBy(
-                e.target.value
-              )
+              setSortBy(e.target.value)
             }
             className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm text-white outline-none transition hover:border-slate-700 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 lg:w-auto"
           >
@@ -165,10 +172,22 @@ function FilterBar({
             </option>
           </select>
 
+          {/* ========================= */}
+          {/* CLEAR FILTERS */}
+          {/* ========================= */}
+
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="w-full rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-red-500/40 hover:bg-red-500/10 hover:text-red-400 lg:w-auto"
+            >
+              Clear Filters
+            </button>
+          )}
+
         </div>
-
       </div>
-
     </div>
   );
 }
