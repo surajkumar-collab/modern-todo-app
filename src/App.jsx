@@ -22,6 +22,37 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   // =========================================
+  // THEME
+  // =========================================
+
+  const [theme, setTheme] = useState(() => {
+    return (
+      localStorage.getItem("taskflow-theme") ||
+      "dark"
+    );
+  });
+
+  // =========================================
+  // APPLY THEME
+  // =========================================
+
+  useEffect(() => {
+    const root =
+      document.documentElement;
+
+    if (theme === "light") {
+      root.classList.add("light");
+    } else {
+      root.classList.remove("light");
+    }
+
+    localStorage.setItem(
+      "taskflow-theme",
+      theme
+    );
+  }, [theme]);
+
+  // =========================================
   // AUTH / SESSION
   // =========================================
 
@@ -140,6 +171,7 @@ function App() {
 
   return (
     <BrowserRouter>
+
       <Routes>
 
         {/* ================================= */}
@@ -229,10 +261,13 @@ function App() {
             path="/settings"
             element={
               <Settings
+                theme={theme}
+                setTheme={setTheme}
                 onLogout={handleLogout}
               />
             }
           />
+
           {/* ================================= */}
           {/* ROOT */}
           {/* ================================= */}
@@ -264,6 +299,7 @@ function App() {
         </Route>
 
       </Routes>
+
     </BrowserRouter>
   );
 }

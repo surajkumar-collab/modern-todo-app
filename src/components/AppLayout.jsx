@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import {
@@ -39,112 +38,127 @@ function AppLayout({ user, onLogout }) {
     },
   ];
 
-  // =========================================
-  // PROFILE STATE
-  // =========================================
-
-  const [profile, setProfile] = useState({
-    name: "",
-    avatar: "",
-  });
-
-  // =========================================
-  // LOAD PROFILE
-  // =========================================
-
-  useEffect(() => {
-    const loadProfile = () => {
-      try {
-        const storedProfile =
-          localStorage.getItem(
-            "taskflow-profile"
-          );
-
-        if (storedProfile) {
-          const parsedProfile =
-            JSON.parse(storedProfile);
-
-          setProfile({
-            name:
-              parsedProfile.name || "",
-            avatar:
-              parsedProfile.avatar || "",
-          });
-        }
-      } catch (error) {
-        console.error(
-          "AppLayout profile load error:",
-          error
-        );
-      }
-    };
-
-    loadProfile();
-
-    // Listen for profile updates
-    window.addEventListener(
-      "taskflow-profile-updated",
-      loadProfile
-    );
-
-    return () => {
-      window.removeEventListener(
-        "taskflow-profile-updated",
-        loadProfile
-      );
-    };
-  }, []);
-
-  // =========================================
-  // USER DISPLAY DATA
-  // =========================================
-
-  const displayName =
-    profile.name ||
-    user?.user_metadata?.name ||
-    user?.user_metadata?.full_name ||
-    user?.email?.split("@")[0] ||
-    "User";
-
-  const initials =
-    displayName
-      .charAt(0)
-      .toUpperCase();
-
   return (
     <div className="min-h-screen bg-slate-950 text-white">
 
       <div className="flex min-h-screen">
 
-        {/* ================================= */}
-        {/* SIDEBAR */}
-        {/* ================================= */}
+        {/* ========================================= */}
+        {/* DESKTOP SIDEBAR */}
+        {/* ========================================= */}
 
-        <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 lg:flex lg:flex-col">
+        <aside
+          className="
+            group
+            hidden
+            w-20
+            shrink-0
+            overflow-hidden
+            border-r
+            border-slate-800
+            bg-slate-950
+            transition-all
+            duration-300
+            ease-in-out
+            hover:w-64
+            lg:flex
+            lg:flex-col
+          "
+        >
 
+          {/* ========================================= */}
           {/* LOGO */}
+          {/* ========================================= */}
 
-          <div className="flex h-20 items-center border-b border-slate-800 px-6">
+          <div
+            className="
+              flex
+              h-20
+              shrink-0
+              items-center
+              border-b
+              border-slate-800
+              px-5
+            "
+          >
 
-            <div>
-              <h1 className="text-xl font-bold tracking-tight text-white">
-                TaskFlow
-              </h1>
+            <div className="flex min-w-[224px] items-center">
 
-              <p className="mt-0.5 text-xs text-slate-500">
-                Productivity workspace
-              </p>
+              {/* Logo mark */}
+
+              <div
+                className="
+                  flex
+                  h-10
+                  w-10
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-blue-500/10
+                  text-lg
+                  font-bold
+                  text-blue-400
+                "
+              >
+                T
+              </div>
+
+              {/* Logo text */}
+
+              <div
+                className="
+                  ml-3
+                  min-w-0
+                  opacity-0
+                  transition-all
+                  duration-200
+                  group-hover:opacity-100
+                "
+              >
+
+                <h1 className="whitespace-nowrap text-xl font-bold tracking-tight text-white">
+                  TaskFlow
+                </h1>
+
+                <p className="mt-0.5 whitespace-nowrap text-xs text-slate-500">
+                  Productivity workspace
+                </p>
+
+              </div>
+
             </div>
 
           </div>
 
+          {/* ========================================= */}
           {/* NAVIGATION */}
+          {/* ========================================= */}
 
-          <nav className="flex-1 space-y-1 px-3 py-6">
+          <nav className="flex-1 space-y-1 overflow-hidden px-3 py-6">
 
-            <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
-              Workspace
-            </p>
+            {/* Section title */}
+
+            <div className="mb-3 h-4 overflow-hidden px-3">
+
+              <p
+                className="
+                  whitespace-nowrap
+                  text-[10px]
+                  font-semibold
+                  uppercase
+                  tracking-[0.18em]
+                  text-slate-600
+                  opacity-0
+                  transition-opacity
+                  duration-200
+                  group-hover:opacity-100
+                "
+              >
+                Workspace
+              </p>
+
+            </div>
 
             {navigation.map((item) => {
               const Icon = item.icon;
@@ -153,142 +167,277 @@ function AppLayout({ user, onLogout }) {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  title={item.name}
                   className={({ isActive }) =>
-                    `group flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition ${
+                    `
+                    group/nav
+                    flex
+                    h-12
+                    items-center
+                    gap-3
+                    overflow-hidden
+                    rounded-xl
+                    px-3
+                    text-sm
+                    font-medium
+                    transition-all
+                    duration-200
+
+                    ${
                       isActive
                         ? "bg-blue-500/10 text-blue-400"
                         : "text-slate-500 hover:bg-slate-900 hover:text-slate-200"
-                    }`
+                    }
+                    `
                   }
                 >
+
                   {({ isActive }) => (
                     <>
+
+                      {/* Icon */}
+
                       <Icon
-                        size={18}
-                        className={
-                          isActive
-                            ? "text-blue-400"
-                            : "text-slate-600 group-hover:text-slate-400"
-                        }
+                        size={20}
+                        className={`
+                          ml-0.5
+                          shrink-0
+                          transition-colors
+                          duration-200
+
+                          ${
+                            isActive
+                              ? "text-blue-400"
+                              : "text-slate-600 group-hover/nav:text-slate-400"
+                          }
+                        `}
                       />
 
-                      <span>
+                      {/* Label */}
+
+                      <span
+                        className="
+                          whitespace-nowrap
+                          opacity-0
+                          transition-all
+                          duration-200
+                          group-hover:translate-x-0
+                          group-hover:opacity-100
+                        "
+                      >
                         {item.name}
                       </span>
 
+                      {/* Active indicator */}
+
                       {isActive && (
-                        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-blue-400" />
+                        <span
+                          className="
+                            ml-auto
+                            h-1.5
+                            w-1.5
+                            shrink-0
+                            rounded-full
+                            bg-blue-400
+                            opacity-0
+                            transition-opacity
+                            duration-200
+                            group-hover:opacity-100
+                          "
+                        />
                       )}
+
                     </>
                   )}
+
                 </NavLink>
               );
             })}
 
           </nav>
 
-          {/* ================================= */}
+          {/* ========================================= */}
           {/* USER AREA */}
-          {/* ================================= */}
+          {/* ========================================= */}
 
-          <div className="border-t border-slate-800 p-4">
+          <div className="shrink-0 border-t border-slate-800 p-3">
 
-            {/* PROFILE */}
+            {/* User card */}
 
             <NavLink
               to="/profile"
-              className={({ isActive }) =>
-                `mb-3 block rounded-xl p-3 transition ${
-                  isActive
-                    ? "bg-blue-500/10"
-                    : "bg-slate-900/60 hover:bg-slate-900"
-                }`
-              }
+              title="View Profile"
+              className="
+                group/profile
+                mb-2
+                flex
+                h-14
+                items-center
+                overflow-hidden
+                rounded-xl
+                bg-slate-900/60
+                px-2.5
+                transition
+                hover:bg-slate-900
+              "
             >
-              {({ isActive }) => (
-                <div className="flex items-center gap-3">
 
-                  {/* AVATAR */}
+              {/* Avatar */}
 
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-bold ${
-                      isActive
-                        ? "bg-blue-500/20 text-blue-400"
-                        : "bg-slate-800 text-slate-300"
-                    }`}
-                  >
+              <div
+                className="
+                  flex
+                  h-9
+                  w-9
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-full
+                  bg-blue-500/10
+                  text-sm
+                  font-semibold
+                  text-blue-400
+                "
+              >
+                {(
+                  user?.user_metadata?.display_name ||
+                  user?.email ||
+                  "U"
+                )
+                  .charAt(0)
+                  .toUpperCase()}
+              </div>
 
-                    {profile.avatar ? (
-                      <img
-                        src={profile.avatar}
-                        alt="Profile"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      initials
-                    )}
+              {/* User details */}
 
-                  </div>
+              <div
+                className="
+                  ml-3
+                  min-w-0
+                  opacity-0
+                  transition-opacity
+                  duration-200
+                  group-hover:opacity-100
+                "
+              >
 
-                  {/* USER INFO */}
+                <p className="truncate whitespace-nowrap text-sm font-semibold text-slate-200">
+                  {user?.user_metadata?.display_name ||
+                    user?.email?.split("@")[0] ||
+                    "User"}
+                </p>
 
-                  <div className="min-w-0">
+                <p className="mt-0.5 whitespace-nowrap text-xs text-slate-600">
+                  View Profile
+                </p>
 
-                    <p
-                      className={`truncate text-sm font-medium ${
-                        isActive
-                          ? "text-blue-400"
-                          : "text-slate-200"
-                      }`}
-                    >
-                      {displayName}
-                    </p>
+              </div>
 
-                    <p className="mt-1 text-xs text-slate-600">
-                      View Profile
-                    </p>
-
-                  </div>
-
-                </div>
-              )}
             </NavLink>
 
-            {/* LOGOUT */}
+            {/* Logout */}
 
             <button
               type="button"
               onClick={onLogout}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-500 transition hover:bg-red-500/10 hover:text-red-400"
+              title="Log out"
+              className="
+                flex
+                h-12
+                w-full
+                items-center
+                gap-3
+                overflow-hidden
+                rounded-xl
+                px-3
+                text-sm
+                font-medium
+                text-slate-500
+                transition
+                hover:bg-red-500/10
+                hover:text-red-400
+              "
             >
-              <FiLogOut size={18} />
 
-              <span>
+              <FiLogOut
+                size={20}
+                className="ml-0.5 shrink-0"
+              />
+
+              <span
+                className="
+                  whitespace-nowrap
+                  opacity-0
+                  transition-opacity
+                  duration-200
+                  group-hover:opacity-100
+                "
+              >
                 Log out
               </span>
+
             </button>
 
           </div>
 
         </aside>
 
-        {/* ================================= */}
+        {/* ========================================= */}
         {/* MAIN AREA */}
-        {/* ================================= */}
+        {/* ========================================= */}
 
         <main className="min-w-0 flex-1">
 
+          {/* ========================================= */}
           {/* MOBILE HEADER */}
+          {/* ========================================= */}
 
-          <div className="sticky top-0 z-40 flex h-16 items-center border-b border-slate-800 bg-slate-950/90 px-4 backdrop-blur lg:hidden">
+          <div
+            className="
+              sticky
+              top-0
+              z-40
+              flex
+              h-16
+              items-center
+              border-b
+              border-slate-800
+              bg-slate-950/90
+              px-4
+              backdrop-blur
+              lg:hidden
+            "
+          >
 
-            <h1 className="text-lg font-bold text-white">
-              TaskFlow
-            </h1>
+            <div className="flex items-center gap-3">
+
+              <div
+                className="
+                  flex
+                  h-9
+                  w-9
+                  items-center
+                  justify-center
+                  rounded-xl
+                  bg-blue-500/10
+                  font-bold
+                  text-blue-400
+                "
+              >
+                T
+              </div>
+
+              <h1 className="text-lg font-bold text-white">
+                TaskFlow
+              </h1>
+
+            </div>
 
           </div>
 
+          {/* ========================================= */}
           {/* PAGE CONTENT */}
+          {/* ========================================= */}
 
           <div className="min-w-0">
             <Outlet />

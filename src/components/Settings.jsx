@@ -9,14 +9,16 @@ import {
   FiLogOut,
 } from "react-icons/fi";
 
-function Settings({ onLogout }) {
+function Settings({
+  theme,
+  setTheme,
+  onLogout,
+}) {
   // =========================================
   // DEFAULT SETTINGS
   // =========================================
 
   const defaultSettings = {
-    theme: "dark",
-
     defaultPriority: "medium",
     defaultView: "list",
     weekStarts: "monday",
@@ -40,47 +42,6 @@ function Settings({ onLogout }) {
     useState(false);
 
   // =========================================
-  // APPLY THEME
-  // =========================================
-
-  const applyTheme = (theme) => {
-    const root =
-      document.documentElement;
-
-    root.classList.remove(
-      "theme-light"
-    );
-
-    // DARK
-    if (theme === "dark") {
-      return;
-    }
-
-    // LIGHT
-    if (theme === "light") {
-      root.classList.add(
-        "theme-light"
-      );
-
-      return;
-    }
-
-    // SYSTEM
-    if (theme === "system") {
-      const prefersLight =
-        window.matchMedia(
-          "(prefers-color-scheme: light)"
-        ).matches;
-
-      if (prefersLight) {
-        root.classList.add(
-          "theme-light"
-        );
-      }
-    }
-  };
-
-  // =========================================
   // LOAD SETTINGS
   // =========================================
 
@@ -93,67 +54,20 @@ function Settings({ onLogout }) {
 
       if (storedSettings) {
         const parsedSettings =
-          JSON.parse(
-            storedSettings
-          );
+          JSON.parse(storedSettings);
 
-        const mergedSettings = {
-          ...defaultSettings,
+        setSettings((prev) => ({
+          ...prev,
           ...parsedSettings,
-        };
-
-        setSettings(
-          mergedSettings
-        );
-
-        applyTheme(
-          mergedSettings.theme
-        );
-      } else {
-        applyTheme("dark");
+        }));
       }
     } catch (error) {
       console.error(
         "Settings load error:",
         error
       );
-
-      applyTheme("dark");
     }
   }, []);
-
-  // =========================================
-  // SYSTEM THEME LISTENER
-  // =========================================
-
-  useEffect(() => {
-    const mediaQuery =
-      window.matchMedia(
-        "(prefers-color-scheme: light)"
-      );
-
-    const handleSystemThemeChange =
-      () => {
-        if (
-          settings.theme ===
-          "system"
-        ) {
-          applyTheme("system");
-        }
-      };
-
-    mediaQuery.addEventListener(
-      "change",
-      handleSystemThemeChange
-    );
-
-    return () => {
-      mediaQuery.removeEventListener(
-        "change",
-        handleSystemThemeChange
-      );
-    };
-  }, [settings.theme]);
 
   // =========================================
   // UPDATE SETTING
@@ -169,11 +83,18 @@ function Settings({ onLogout }) {
     }));
 
     setSaved(false);
+  };
 
-    // Apply theme immediately
-    if (key === "theme") {
-      applyTheme(value);
-    }
+  // =========================================
+  // UPDATE THEME
+  // =========================================
+
+  const handleThemeChange = (
+    value
+  ) => {
+    setTheme(value);
+
+    setSaved(false);
   };
 
   // =========================================
@@ -182,13 +103,19 @@ function Settings({ onLogout }) {
 
   const handleSave = () => {
     try {
+      const settingsToSave = {
+        ...settings,
+        theme,
+      };
+
       localStorage.setItem(
         "taskflow-settings",
-        JSON.stringify(settings)
+        JSON.stringify(settingsToSave)
       );
 
-      applyTheme(
-        settings.theme
+      localStorage.setItem(
+        "taskflow-theme",
+        theme
       );
 
       setSaved(true);
@@ -265,10 +192,9 @@ function Settings({ onLogout }) {
               >
 
                 <select
-                  value={settings.theme}
+                  value={theme}
                   onChange={(e) =>
-                    updateSetting(
-                      "theme",
+                    handleThemeChange(
                       e.target.value
                     )
                   }
