@@ -9,12 +9,24 @@ import {
 
 function Analytics({ tasks = [] }) {
   // =========================================
+  // SAFE TASK DATA
+  // =========================================
+
+  const safeTasks = Array.isArray(tasks) ? tasks : [];
+
+  // =========================================
   // DATE HELPERS
   // =========================================
 
   const getStartOfDay = (date = new Date()) => {
     const result = new Date(date);
+
+    if (Number.isNaN(result.getTime())) {
+      return null;
+    }
+
     result.setHours(0, 0, 0, 0);
+
     return result;
   };
 
@@ -22,7 +34,24 @@ function Analytics({ tasks = [] }) {
     if (!dateString) return null;
 
     const date = new Date(`${dateString}T00:00:00`);
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+
     date.setHours(0, 0, 0, 0);
+
+    return date;
+  };
+
+  const getValidDate = (dateValue) => {
+    if (!dateValue) return null;
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
 
     return date;
   };
@@ -34,10 +63,31 @@ function Analytics({ tasks = [] }) {
   const analytics = useMemo(() => {
     const today = getStartOfDay();
 
-    const total = tasks.length;
+    if (!today) {
+      return {
+        total: 0,
+        completed: 0,
+        completedToday: 0,
+        completedThisWeek: 0,
+        overdue: 0,
+        completionRate: 0,
+        weeklyData: [],
+        maxWeeklyCount: 1,
+        priorityData: [],
+        maxPriorityCount: 1,
+        categoryData: [],
+        maxCategoryCount: 1,
+      };
+    }
 
-    const completedTasks = tasks.filter(
-      (task) => task.completed
+    const total = safeTasks.length;
+
+    // =========================================
+    // COMPLETED TASKS
+    // =========================================
+
+    const completedTasks = safeTasks.filter(
+      (task) => task?.completed === true
     );
 
     const completed = completedTasks.length;
@@ -46,17 +96,25 @@ function Analytics({ tasks = [] }) {
     // COMPLETED TODAY
     // =========================================
 
-    const completedToday = completedTasks.filter((task) => {
-      if (!task.updated_at) return false;
+    const completedToday = completedTasks.filter(
+      (task) => {
+        const updatedDate = getValidDate(
+          task?.updated_at
+        );
 
-      const completedDate = getStartOfDay(
-        new Date(task.updated_at)
-      );
+        if (!updatedDate) return false;
 
-      return (
-        completedDate.getTime() === today.getTime()
-      );
-    }).length;
+        const completedDate =
+          getStartOfDay(updatedDate);
+
+        if (!completedDate) return false;
+
+        return (
+          completedDate.getTime() ===
+          today.getTime()
+        );
+      }
+    ).length;
 
     // =========================================
     // START OF WEEK
@@ -74,33 +132,40 @@ function Analytics({ tasks = [] }) {
     // COMPLETED THIS WEEK
     // =========================================
 
-    const completedThisWeek = completedTasks.filter(
-      (task) => {
-        if (!task.updated_at) return false;
+    const now = new Date();
 
-        const completedDate = new Date(
-          task.updated_at
-        );
+    const completedThisWeek =
+      completedTasks.filter((task) => {
+        const completedDate =
+          getValidDate(task?.updated_at);
+
+        if (!completedDate) return false;
 
         return (
           completedDate >= startOfWeek &&
-          completedDate <= new Date()
+          completedDate <= now
         );
-      }
-    ).length;
+      }).length;
 
     // =========================================
     // OVERDUE
     // =========================================
 
-    const overdue = tasks.filter((task) => {
-      if (task.completed || !task.due_date) {
+    const overdue = safeTasks.filter((task) => {
+      if (
+        task?.completed ||
+        !task?.due_date
+      ) {
         return false;
       }
 
-      const dueDate = getDateOnly(task.due_date);
+      const dueDate = getDateOnly(
+        task.due_date
+      );
 
-      return dueDate && dueDate < today;
+      if (!dueDate) return false;
+
+      return dueDate < today;
     }).length;
 
     // =========================================
@@ -110,7 +175,9 @@ function Analytics({ tasks = [] }) {
     const completionRate =
       total === 0
         ? 0
-        : Math.round((completed / total) * 100);
+        : Math.round(
+            (completed / total) * 100
+          );
 
     // =========================================
     // WEEKLY DATA
@@ -127,18 +194,23 @@ function Analytics({ tasks = [] }) {
     ];
 
     const weeklyData = weekDays.map((day) => {
-      const count = completedTasks.filter((task) => {
-        if (!task.updated_at) return false;
+      const count =
+        completedTasks.filter((task) => {
+          const completedDate =
+            getValidDate(
+              task?.updated_at
+            );
 
-        const completedDate = new Date(
-          task.updated_at
-        );
+          if (!completedDate) {
+            return false;
+          }
 
-        return (
-          completedDate >= startOfWeek &&
-          completedDate.getDay() === day.key
-        );
-      }).length;
+          return (
+            completedDate >= startOfWeek &&
+            completedDate.getDay() ===
+              day.key
+          );
+        }).length;
 
       return {
         ...day,
@@ -147,7 +219,9 @@ function Analytics({ tasks = [] }) {
     });
 
     const maxWeeklyCount = Math.max(
-      ...weeklyData.map((day) => day.count),
+      ...weeklyData.map(
+        (day) => day.count
+      ),
       1
     );
 
@@ -159,10 +233,11 @@ function Analytics({ tasks = [] }) {
       {
         name: "High",
         key: "high",
-        count: tasks.filter(
+        count: safeTasks.filter(
           (task) =>
-            String(task.priority || "").toLowerCase() ===
-            "high"
+            String(
+              task?.priority || ""
+            ).toLowerCase() === "high"
         ).length,
         bar:
           "bg-gradient-to-r from-red-500 to-rose-400",
@@ -170,10 +245,11 @@ function Analytics({ tasks = [] }) {
       {
         name: "Medium",
         key: "medium",
-        count: tasks.filter(
+        count: safeTasks.filter(
           (task) =>
-            String(task.priority || "").toLowerCase() ===
-            "medium"
+            String(
+              task?.priority || ""
+            ).toLowerCase() === "medium"
         ).length,
         bar:
           "bg-gradient-to-r from-yellow-500 to-amber-400",
@@ -181,10 +257,11 @@ function Analytics({ tasks = [] }) {
       {
         name: "Low",
         key: "low",
-        count: tasks.filter(
+        count: safeTasks.filter(
           (task) =>
-            String(task.priority || "").toLowerCase() ===
-            "low"
+            String(
+              task?.priority || ""
+            ).toLowerCase() === "low"
         ).length,
         bar:
           "bg-gradient-to-r from-green-500 to-emerald-400",
@@ -192,7 +269,9 @@ function Analytics({ tasks = [] }) {
     ];
 
     const maxPriorityCount = Math.max(
-      ...priorityData.map((item) => item.count),
+      ...priorityData.map(
+        (item) => item.count
+      ),
       1
     );
 
@@ -202,22 +281,31 @@ function Analytics({ tasks = [] }) {
 
     const categoryMap = {};
 
-    tasks.forEach((task) => {
+    safeTasks.forEach((task) => {
       let categoryName =
-        task.category_name ||
-        task.category ||
-        task.categories?.name ||
+        task?.category_name ||
+        task?.category ||
+        task?.categories?.name ||
         "General";
 
+      // Handle category object safely
       if (
-        typeof categoryName === "object" &&
+        typeof categoryName ===
+          "object" &&
         categoryName !== null
       ) {
         categoryName =
-          categoryName.name || "General";
+          categoryName.name ||
+          "General";
       }
 
-      categoryName = String(categoryName);
+      categoryName = String(
+        categoryName
+      ).trim();
+
+      if (!categoryName) {
+        categoryName = "General";
+      }
 
       if (!categoryMap[categoryName]) {
         categoryMap[categoryName] = 0;
@@ -233,10 +321,14 @@ function Analytics({ tasks = [] }) {
         name,
         count,
       }))
-      .sort((a, b) => b.count - a.count);
+      .sort(
+        (a, b) => b.count - a.count
+      );
 
     const maxCategoryCount = Math.max(
-      ...categoryData.map((item) => item.count),
+      ...categoryData.map(
+        (item) => item.count
+      ),
       1
     );
 
@@ -254,7 +346,7 @@ function Analytics({ tasks = [] }) {
       categoryData,
       maxCategoryCount,
     };
-  }, [tasks]);
+  }, [safeTasks]);
 
   // =========================================
   // STAT CARDS
@@ -264,34 +356,42 @@ function Analytics({ tasks = [] }) {
     {
       title: "Completion Rate",
       value: `${analytics.completionRate}%`,
-      description: "Overall task completion",
+      description:
+        "Overall task completion",
       icon: <FiTarget size={20} />,
       iconClass:
         "bg-blue-500/10 text-blue-400",
     },
     {
       title: "Completed Today",
-      value: analytics.completedToday,
-      description: "Tasks finished today",
-      icon: <FiCheckCircle size={20} />,
+      value:
+        analytics.completedToday,
+      description:
+        "Tasks finished today",
+      icon:
+        <FiCheckCircle size={20} />,
       iconClass:
         "bg-green-500/10 text-green-400",
     },
     {
       title: "This Week",
-      value: analytics.completedThisWeek,
+      value:
+        analytics.completedThisWeek,
       description:
         "Tasks completed this week",
-      icon: <FiActivity size={20} />,
+      icon:
+        <FiActivity size={20} />,
       iconClass:
         "bg-cyan-500/10 text-cyan-400",
     },
     {
       title: "Overdue",
-      value: analytics.overdue,
+      value:
+        analytics.overdue,
       description:
         "Active overdue tasks",
-      icon: <FiAlertCircle size={20} />,
+      icon:
+        <FiAlertCircle size={20} />,
       iconClass:
         "bg-red-500/10 text-red-400",
     },
@@ -376,58 +476,67 @@ function Analytics({ tasks = [] }) {
           <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-3 py-1.5 text-sm text-slate-400">
             {analytics.completedThisWeek} completed
           </div>
-
         </div>
 
-        <div className="mt-8">
+        {analytics.total === 0 ? (
+          <div className="flex min-h-48 items-center justify-center">
+            <div className="text-center">
+              <p className="text-sm font-medium text-slate-400">
+                No tasks yet
+              </p>
 
-          <div className="flex h-56 items-end justify-between gap-2 sm:gap-4">
-
-            {analytics.weeklyData.map((day) => {
-
-              const height =
-                day.count === 0
-                  ? 6
-                  : Math.max(
-                      (day.count /
-                        analytics.maxWeeklyCount) *
-                        100,
-                      12
-                    );
-
-              return (
-                <div
-                  key={day.name}
-                  className="flex h-full flex-1 flex-col items-center justify-end"
-                >
-
-                  <span className="mb-2 text-xs font-semibold text-slate-400">
-                    {day.count}
-                  </span>
-
-                  <div className="flex h-40 w-full max-w-12 items-end justify-center">
-
-                    <div
-                      className="w-full rounded-t-xl bg-gradient-to-t from-blue-600 to-cyan-400 transition-all duration-500"
-                      style={{
-                        height: `${height}%`,
-                        minHeight: "6px",
-                      }}
-                    />
-
-                  </div>
-
-                  <span className="mt-3 text-xs font-medium text-slate-500">
-                    {day.name}
-                  </span>
-
-                </div>
-              );
-            })}
-
+              <p className="mt-1 text-xs text-slate-600">
+                Add some tasks to start tracking productivity.
+              </p>
+            </div>
           </div>
+        ) : (
+          <div className="mt-8">
+            <div className="flex h-56 items-end justify-between gap-2 sm:gap-4">
 
-        </div>
+              {analytics.weeklyData.map(
+                (day) => {
+                  const height =
+                    day.count === 0
+                      ? 6
+                      : Math.max(
+                          (day.count /
+                            analytics.maxWeeklyCount) *
+                            100,
+                          12
+                        );
+
+                  return (
+                    <div
+                      key={day.name}
+                      className="flex h-full flex-1 flex-col items-center justify-end"
+                    >
+                      <span className="mb-2 text-xs font-semibold text-slate-400">
+                        {day.count}
+                      </span>
+
+                      <div className="flex h-40 w-full max-w-12 items-end justify-center">
+                        <div
+                          className="w-full rounded-t-xl bg-gradient-to-t from-blue-600 to-cyan-400 transition-all duration-500"
+                          style={{
+                            height: `${height}%`,
+                            minHeight:
+                              "6px",
+                          }}
+                        />
+                      </div>
+
+                      <span className="mt-3 text-xs font-medium text-slate-500">
+                        {day.name}
+                      </span>
+                    </div>
+                  );
+                }
+              )}
+
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ===================================== */}
@@ -443,7 +552,6 @@ function Analytics({ tasks = [] }) {
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
 
           <div className="mb-6">
-
             <h4 className="text-lg font-bold text-white">
               Priority Breakdown
             </h4>
@@ -451,57 +559,60 @@ function Analytics({ tasks = [] }) {
             <p className="mt-1 text-sm text-slate-500">
               See how your tasks are distributed.
             </p>
-
           </div>
 
-          <div className="space-y-5">
+          {analytics.total === 0 ? (
+            <div className="flex min-h-32 items-center justify-center text-sm text-slate-600">
+              No priority data available.
+            </div>
+          ) : (
+            <div className="space-y-5">
 
-            {analytics.priorityData.map(
-              (item) => {
+              {analytics.priorityData.map(
+                (item) => {
+                  const width =
+                    item.count === 0
+                      ? 0
+                      : Math.max(
+                          (item.count /
+                            analytics.maxPriorityCount) *
+                            100,
+                          8
+                        );
 
-                const width =
-                  item.count === 0
-                    ? 0
-                    : Math.max(
-                        (item.count /
-                          analytics.maxPriorityCount) *
-                          100,
-                        8
-                      );
+                  return (
+                    <div key={item.key}>
 
-                return (
-                  <div key={item.key}>
+                      <div className="mb-2 flex items-center justify-between">
 
-                    <div className="mb-2 flex items-center justify-between">
+                        <span className="text-sm font-medium text-slate-300">
+                          {item.name}
+                        </span>
 
-                      <span className="text-sm font-medium text-slate-300">
-                        {item.name}
-                      </span>
+                        <span className="text-sm font-semibold text-slate-400">
+                          {item.count}
+                        </span>
 
-                      <span className="text-sm font-semibold text-slate-400">
-                        {item.count}
-                      </span>
+                      </div>
+
+                      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${item.bar}`}
+                          style={{
+                            width: `${width}%`,
+                          }}
+                        />
+
+                      </div>
 
                     </div>
+                  );
+                }
+              )}
 
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-800">
-
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${item.bar}`}
-                        style={{
-                          width: `${width}%`,
-                        }}
-                      />
-
-                    </div>
-
-                  </div>
-                );
-              }
-            )}
-
-          </div>
-
+            </div>
+          )}
         </div>
 
         {/* =================================== */}
@@ -511,7 +622,6 @@ function Analytics({ tasks = [] }) {
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
 
           <div className="mb-6">
-
             <h4 className="text-lg font-bold text-white">
               Category Breakdown
             </h4>
@@ -519,7 +629,6 @@ function Analytics({ tasks = [] }) {
             <p className="mt-1 text-sm text-slate-500">
               See where your tasks are focused.
             </p>
-
           </div>
 
           {analytics.categoryData.length === 0 ? (
@@ -531,7 +640,6 @@ function Analytics({ tasks = [] }) {
 
               {analytics.categoryData.map(
                 (item) => {
-
                   const width =
                     item.count === 0
                       ? 0

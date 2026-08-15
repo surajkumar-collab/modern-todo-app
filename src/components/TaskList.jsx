@@ -785,16 +785,66 @@ function TaskList({
   // LOADING
   // =========================
 
-  if (loading) {
+   if (loading) {
     return (
-      <div className="flex min-h-[250px] items-center justify-center">
-        <p className="text-sm text-slate-500">
-          Loading tasks...
-        </p>
+      <div className="w-full">
+
+        {/* FILTER SKELETON */}
+
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <div className="h-10 w-full animate-pulse rounded-xl bg-slate-900 sm:w-40" />
+          <div className="h-10 w-full animate-pulse rounded-xl bg-slate-900 sm:w-40" />
+          <div className="h-10 w-full animate-pulse rounded-xl bg-slate-900 sm:w-40" />
+        </div>
+
+        {/* TASK SKELETONS */}
+
+        <div className="space-y-4">
+
+          {[1, 2, 3].map((item) => (
+            <div
+              key={item}
+              className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
+            >
+
+              <div className="flex items-start gap-4">
+
+                {/* CHECKBOX */}
+
+                <div className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-slate-800" />
+
+                <div className="flex-1">
+
+                  {/* TITLE */}
+
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-slate-800" />
+
+                  {/* DESCRIPTION */}
+
+                  <div className="mt-3 h-3 w-1/2 animate-pulse rounded bg-slate-800" />
+
+                  {/* META */}
+
+                  <div className="mt-4 flex gap-2">
+
+                    <div className="h-6 w-16 animate-pulse rounded-lg bg-slate-800" />
+
+                    <div className="h-6 w-20 animate-pulse rounded-lg bg-slate-800" />
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+          ))}
+
+        </div>
+
       </div>
     );
   }
-
   // =========================
   // UI
   // =========================
