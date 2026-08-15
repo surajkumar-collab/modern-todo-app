@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import {
@@ -7,7 +8,6 @@ import {
   FiCalendar,
   FiSettings,
   FiLogOut,
-  FiUser,
 } from "react-icons/fi";
 
 function AppLayout({ user, onLogout }) {
@@ -39,15 +39,77 @@ function AppLayout({ user, onLogout }) {
     },
   ];
 
+  // =========================================
+  // PROFILE STATE
+  // =========================================
+
+  const [profile, setProfile] = useState({
+    name: "",
+    avatar: "",
+  });
+
+  // =========================================
+  // LOAD PROFILE
+  // =========================================
+
+  useEffect(() => {
+    const loadProfile = () => {
+      try {
+        const storedProfile =
+          localStorage.getItem(
+            "taskflow-profile"
+          );
+
+        if (storedProfile) {
+          const parsedProfile =
+            JSON.parse(storedProfile);
+
+          setProfile({
+            name:
+              parsedProfile.name || "",
+            avatar:
+              parsedProfile.avatar || "",
+          });
+        }
+      } catch (error) {
+        console.error(
+          "AppLayout profile load error:",
+          error
+        );
+      }
+    };
+
+    loadProfile();
+
+    // Listen for profile updates
+    window.addEventListener(
+      "taskflow-profile-updated",
+      loadProfile
+    );
+
+    return () => {
+      window.removeEventListener(
+        "taskflow-profile-updated",
+        loadProfile
+      );
+    };
+  }, []);
+
+  // =========================================
+  // USER DISPLAY DATA
+  // =========================================
+
   const displayName =
+    profile.name ||
+    user?.user_metadata?.name ||
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "User";
 
-  const avatarLetter =
+  const initials =
     displayName
       .charAt(0)
-      .toUpperCase() || "U";
+      .toUpperCase();
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -60,9 +122,7 @@ function AppLayout({ user, onLogout }) {
 
         <aside className="hidden w-64 shrink-0 border-r border-slate-800 bg-slate-950 lg:flex lg:flex-col">
 
-          {/* ================================= */}
           {/* LOGO */}
-          {/* ================================= */}
 
           <div className="flex h-20 items-center border-b border-slate-800 px-6">
 
@@ -78,9 +138,7 @@ function AppLayout({ user, onLogout }) {
 
           </div>
 
-          {/* ================================= */}
           {/* NAVIGATION */}
-          {/* ================================= */}
 
           <nav className="flex-1 space-y-1 px-3 py-6">
 
@@ -135,7 +193,7 @@ function AppLayout({ user, onLogout }) {
 
           <div className="border-t border-slate-800 p-4">
 
-            {/* PROFILE LINK */}
+            {/* PROFILE */}
 
             <NavLink
               to="/profile"
@@ -153,16 +211,26 @@ function AppLayout({ user, onLogout }) {
                   {/* AVATAR */}
 
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-bold ${
                       isActive
                         ? "bg-blue-500/20 text-blue-400"
                         : "bg-slate-800 text-slate-300"
                     }`}
                   >
-                    {avatarLetter}
+
+                    {profile.avatar ? (
+                      <img
+                        src={profile.avatar}
+                        alt="Profile"
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      initials
+                    )}
+
                   </div>
 
-                  {/* INFO */}
+                  {/* USER INFO */}
 
                   <div className="min-w-0">
 
@@ -176,9 +244,7 @@ function AppLayout({ user, onLogout }) {
                       {displayName}
                     </p>
 
-                    <p className="mt-0.5 flex items-center gap-1 text-xs text-slate-600">
-                      <FiUser size={11} />
-
+                    <p className="mt-1 text-xs text-slate-600">
                       View Profile
                     </p>
 
@@ -195,13 +261,11 @@ function AppLayout({ user, onLogout }) {
               onClick={onLogout}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-500 transition hover:bg-red-500/10 hover:text-red-400"
             >
-
               <FiLogOut size={18} />
 
               <span>
                 Log out
               </span>
-
             </button>
 
           </div>
@@ -214,28 +278,17 @@ function AppLayout({ user, onLogout }) {
 
         <main className="min-w-0 flex-1">
 
-          {/* ================================= */}
           {/* MOBILE HEADER */}
-          {/* ================================= */}
 
-          <div className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-800 bg-slate-950/90 px-4 backdrop-blur lg:hidden">
+          <div className="sticky top-0 z-40 flex h-16 items-center border-b border-slate-800 bg-slate-950/90 px-4 backdrop-blur lg:hidden">
 
             <h1 className="text-lg font-bold text-white">
               TaskFlow
             </h1>
 
-            <NavLink
-              to="/profile"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/10 text-sm font-bold text-blue-400"
-            >
-              {avatarLetter}
-            </NavLink>
-
           </div>
 
-          {/* ================================= */}
           {/* PAGE CONTENT */}
-          {/* ================================= */}
 
           <div className="min-w-0">
             <Outlet />

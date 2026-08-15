@@ -2,268 +2,220 @@ import { useEffect, useState } from "react";
 import {
   FiUser,
   FiMail,
-  FiSave,
   FiCamera,
-  FiTrash2,
+  FiSave,
+  FiCheckCircle,
+  FiList,
+  FiTrendingUp,
 } from "react-icons/fi";
 
 import { supabase } from "../supabaseClient";
 
 function Profile({ user }) {
-  const [fullName, setFullName] = useState(
-    user?.user_metadata?.full_name || ""
-  );
+  const [profile, setProfile] = useState({
+    name: "",
+    bio: "",
+    avatar: "",
+  });
 
-  const [avatarUrl, setAvatarUrl] = useState(
-    user?.user_metadata?.avatar_url || ""
-  );
+  const [stats, setStats] = useState({
+    total: 0,
+    completed: 0,
+    active: 0,
+    rate: 0,
+  });
 
-  const [selectedFile, setSelectedFile] =
-    useState(null);
-
-  const [previewUrl, setPreviewUrl] =
-    useState(
-      user?.user_metadata?.avatar_url || ""
-    );
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [uploading, setUploading] =
-    useState(false);
-
-  const [message, setMessage] =
-    useState("");
-
-  const [error, setError] =
-    useState("");
+  const [saved, setSaved] = useState(false);
 
   // =========================================
-  // LOAD USER DATA
+  // LOAD PROFILE
   // =========================================
 
   useEffect(() => {
-    const name =
-      user?.user_metadata?.full_name || "";
+    const storedProfile =
+      localStorage.getItem(
+        "taskflow-profile"
+      );
 
-    const avatar =
-      user?.user_metadata?.avatar_url || "";
-
-    setFullName(name);
-    setAvatarUrl(avatar);
-    setPreviewUrl(avatar);
+    if (storedProfile) {
+      try {
+        setProfile(
+          JSON.parse(storedProfile)
+        );
+      } catch (error) {
+        console.error(
+          "Profile load error:",
+          error
+        );
+      }
+    } else {
+      setProfile({
+        name:
+          user?.user_metadata?.name ||
+          user?.user_metadata?.full_name ||
+          "",
+        bio: "Developer & Student",
+        avatar: "",
+      });
+    }
   }, [user]);
 
   // =========================================
-  // DISPLAY NAME
+  // LOAD TASK STATS
   // =========================================
 
-  const displayName =
-    fullName ||
-    user?.email?.split("@")[0] ||
-    "User";
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data, error } =
+          await supabase
+            .from("tasks")
+            .select("completed")
+            .eq("user_id", user.id);
+
+        if (error) {
+          throw error;
+        }
+
+        const tasks = data || [];
+
+        const total = tasks.length;
+
+        const completed =
+          tasks.filter(
+            (task) =>
+              task.completed === true
+          ).length;
+
+        const active =
+          total - completed;
+
+        const rate =
+          total > 0
+            ? Math.round(
+                (completed / total) * 100
+              )
+            : 0;
+
+        setStats({
+          total,
+          completed,
+          active,
+          rate,
+        });
+      } catch (error) {
+        console.error(
+          "Profile stats error:",
+          error
+        );
+      }
+    };
+
+    fetchStats();
+  }, [user]);
 
   // =========================================
-  // SELECT PHOTO
+  // UPDATE PROFILE
   // =========================================
 
-  const handleFileChange = (event) => {
+  const updateProfile = (
+    key,
+    value
+  ) => {
+    setProfile((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+
+    setSaved(false);
+  };
+
+  // =========================================
+  // IMAGE UPLOAD
+  // =========================================
+
+  const handleAvatarChange = (
+    event
+  ) => {
     const file =
       event.target.files?.[0];
 
     if (!file) return;
 
-    setMessage("");
-    setError("");
-
-    // 2MB limit
+    // 2 MB limit
     if (file.size > 2 * 1024 * 1024) {
-      setError(
-        "Image must be smaller than 2MB."
+      alert(
+        "Please choose an image smaller than 2MB."
       );
 
-      event.target.value = "";
       return;
     }
 
-    // Image validation
-    if (!file.type.startsWith("image/")) {
-      setError(
-        "Please select a valid image."
+    const reader =
+      new FileReader();
+
+    reader.onload = () => {
+      updateProfile(
+        "avatar",
+        reader.result
       );
+    };
 
-      event.target.value = "";
-      return;
-    }
-
-    setSelectedFile(file);
-
-    const localPreview =
-      URL.createObjectURL(file);
-
-    setPreviewUrl(localPreview);
-  };
-
-  // =========================================
-  // UPLOAD AVATAR
-  // =========================================
-
-  const uploadAvatar = async () => {
-    if (!selectedFile || !user?.id) {
-      return avatarUrl;
-    }
-
-    try {
-      setUploading(true);
-      setError("");
-
-      const fileExtension =
-        selectedFile.name
-          .split(".")
-          .pop()
-          ?.toLowerCase() || "jpg";
-
-      const filePath = `${user.id}/avatar.${fileExtension}`;
-
-      // Upload / replace existing avatar
-      const {
-        error: uploadError,
-      } = await supabase.storage
-        .from("avatars")
-        .upload(
-          filePath,
-          selectedFile,
-          {
-            cacheControl: "3600",
-            upsert: true,
-            contentType:
-              selectedFile.type,
-          }
-        );
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const {
-        data: publicUrlData,
-      } = supabase.storage
-        .from("avatars")
-        .getPublicUrl(filePath);
-
-      const publicUrl =
-        publicUrlData?.publicUrl;
-
-      if (!publicUrl) {
-        throw new Error(
-          "Could not generate avatar URL."
-        );
-      }
-
-      // Cache-busting
-      const finalUrl =
-        `${publicUrl}?t=${Date.now()}`;
-
-      setAvatarUrl(finalUrl);
-      setPreviewUrl(finalUrl);
-      setSelectedFile(null);
-
-      return finalUrl;
-    } catch (uploadError) {
-      console.error(
-        "Avatar upload error:",
-        uploadError
-      );
-
-      throw uploadError;
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // =========================================
-  // REMOVE AVATAR
-  // =========================================
-
-  const handleRemoveAvatar = () => {
-    setSelectedFile(null);
-    setAvatarUrl("");
-    setPreviewUrl("");
-
-    setMessage(
-      "Photo will be removed when you save."
-    );
+    reader.readAsDataURL(file);
   };
 
   // =========================================
   // SAVE PROFILE
   // =========================================
 
-  const handleSave = async () => {
+  const handleSave = () => {
     try {
-      setSaving(true);
-      setMessage("");
-      setError("");
-
-      let finalAvatarUrl =
-        avatarUrl;
-
-      // Upload selected image
-      if (selectedFile) {
-        finalAvatarUrl =
-          await uploadAvatar();
-      }
-
-      // Update Supabase user metadata
-      const {
-        data,
-        error: updateError,
-      } = await supabase.auth.updateUser({
-        data: {
-          full_name:
-            fullName.trim(),
-          avatar_url:
-            finalAvatarUrl || null,
-        },
-      });
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Update local state
-      const updatedAvatar =
-        data?.user?.user_metadata
-          ?.avatar_url ||
-        finalAvatarUrl ||
-        "";
-
-      setAvatarUrl(updatedAvatar);
-      setPreviewUrl(updatedAvatar);
-
-      setMessage(
-        "Profile updated successfully."
+      localStorage.setItem(
+        "taskflow-profile",
+        JSON.stringify(profile)
       );
-    } catch (saveError) {
+
+      //Tell the rest of the app that profile changed
+
+      window.dispatchEvent(
+        new Event(
+            "taskflow-profile-updated"
+        )
+      );
+
+      setSaved(true);
+
+      setTimeout(() => {
+        setSaved(false);
+      }, 2500);
+    } catch (error) {
       console.error(
         "Profile save error:",
-        saveError
+        error
       );
-
-      setError(
-        saveError?.message ||
-          "Unable to save profile."
-      );
-    } finally {
-      setSaving(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white sm:px-6 lg:px-8">
+  // =========================================
+  // INITIAL
+  // =========================================
 
-      <div className="mx-auto max-w-4xl">
+  const displayName =
+    profile.name ||
+    user?.email?.split("@")[0] ||
+    "User";
+
+  const initials =
+    displayName
+      .charAt(0)
+      .toUpperCase();
+
+  return (
+    <div className="min-h-screen bg-slate-950 px-4 py-8 text-white transition-colors duration-300 sm:px-6 lg:px-8">
+
+      <div className="mx-auto max-w-5xl">
 
         {/* ================================= */}
         {/* HEADER */}
@@ -280,138 +232,169 @@ function Profile({ user }) {
           </h1>
 
           <p className="mt-2 text-sm text-slate-500">
-            Manage your personal information.
+            Manage your personal TaskFlow profile.
           </p>
 
         </div>
 
         {/* ================================= */}
-        {/* PROFILE CARD */}
+        {/* PROFILE HERO */}
         {/* ================================= */}
 
-        <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
+        <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
 
-          {/* PROFILE HEADER */}
+          <div className="h-32 bg-gradient-to-r from-blue-600/20 via-cyan-500/10 to-purple-600/20" />
 
-          <div className="border-b border-slate-800 p-6 sm:p-8">
+          <div className="px-5 pb-6 sm:px-8">
 
-            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+            <div className="-mt-16 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
 
               {/* AVATAR */}
 
               <div className="relative">
 
-                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-blue-500/10 text-3xl font-bold text-blue-400 ring-2 ring-slate-800">
+                <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-slate-900 bg-slate-800 text-4xl font-bold text-blue-400">
 
-                  {previewUrl ? (
+                  {profile.avatar ? (
                     <img
-                      src={previewUrl}
+                      src={profile.avatar}
                       alt="Profile"
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    displayName
-                      .charAt(0)
-                      .toUpperCase()
+                    initials
                   )}
 
                 </div>
 
-                {/* CAMERA BUTTON */}
-
                 <label
                   htmlFor="avatar-upload"
-                  className="absolute bottom-0 right-0 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-slate-300 shadow-lg transition hover:bg-slate-800 hover:text-white"
-                  title="Change photo"
+                  className="absolute bottom-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-4 border-slate-900 bg-blue-600 text-white shadow-lg transition hover:bg-blue-500"
                 >
-                  <FiCamera size={16} />
+                  <FiCamera size={17} />
 
                   <input
                     id="avatar-upload"
                     type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={
-                      handleFileChange
-                    }
+                    accept="image/*"
                     className="hidden"
+                    onChange={
+                      handleAvatarChange
+                    }
                   />
                 </label>
 
               </div>
 
-              {/* USER INFO */}
+              {/* NAME */}
 
-              <div className="min-w-0">
+              <div className="sm:pb-1">
 
-                <h2 className="truncate text-xl font-semibold text-white">
+                <h2 className="text-2xl font-bold text-white">
                   {displayName}
                 </h2>
 
-                <p className="mt-1 truncate text-sm text-slate-500">
-                  {user?.email ||
-                    "No email"}
-                </p>
-
-                <p className="mt-2 text-xs text-slate-600">
-                  JPG, PNG or WebP • Max 2MB
+                <p className="mt-1 text-sm text-slate-500">
+                  {user?.email}
                 </p>
 
               </div>
 
             </div>
 
-            {/* REMOVE PHOTO */}
-
-            {previewUrl && (
-              <button
-                type="button"
-                onClick={
-                  handleRemoveAvatar
-                }
-                className="mt-5 flex items-center gap-2 text-xs font-medium text-red-400 transition hover:text-red-300"
-              >
-                <FiTrash2 size={14} />
-
-                Remove photo
-              </button>
-            )}
-
           </div>
 
-          {/* ================================= */}
-          {/* FORM */}
-          {/* ================================= */}
+        </section>
 
-          <div className="space-y-6 p-6 sm:p-8">
+        {/* ================================= */}
+        {/* STATS */}
+        {/* ================================= */}
 
-            {/* FULL NAME */}
+        <section className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
+
+          <StatCard
+            icon={FiList}
+            label="Total Tasks"
+            value={stats.total}
+          />
+
+          <StatCard
+            icon={FiCheckCircle}
+            label="Completed"
+            value={stats.completed}
+          />
+
+          <StatCard
+            icon={FiTrendingUp}
+            label="Active"
+            value={stats.active}
+          />
+
+          <StatCard
+            icon={FiCheckCircle}
+            label="Completion Rate"
+            value={`${stats.rate}%`}
+          />
+
+        </section>
+
+        {/* ================================= */}
+        {/* PROFILE FORM */}
+        {/* ================================= */}
+
+        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60">
+
+          <div className="flex items-center gap-3 border-b border-slate-800 p-5 sm:p-6">
+
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+              <FiUser size={19} />
+            </div>
 
             <div>
 
-              <label
-                htmlFor="fullName"
-                className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300"
-              >
-                <FiUser size={16} />
+              <h2 className="font-semibold text-white">
+                Personal Information
+              </h2>
 
-                Full Name
+              <p className="mt-0.5 text-xs text-slate-500">
+                Update your profile information.
+              </p>
+
+            </div>
+
+          </div>
+
+          <div className="space-y-5 p-5 sm:p-6">
+
+            {/* NAME */}
+
+            <div>
+
+              <label className="mb-2 block text-sm font-medium text-slate-300">
+                Display Name
               </label>
 
-              <input
-                id="fullName"
-                type="text"
-                value={fullName}
-                onChange={(event) => {
-                  setFullName(
-                    event.target.value
-                  );
+              <div className="relative">
 
-                  setMessage("");
-                  setError("");
-                }}
-                placeholder="Enter your full name"
-                className="w-full rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              />
+                <FiUser
+                  size={17}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
+                />
+
+                <input
+                  type="text"
+                  value={profile.name}
+                  onChange={(e) =>
+                    updateProfile(
+                      "name",
+                      e.target.value
+                    )
+                  }
+                  placeholder="Enter your name"
+                  className="w-full rounded-xl border border-slate-800 bg-slate-950 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                />
+
+              </div>
 
             </div>
 
@@ -419,78 +402,129 @@ function Profile({ user }) {
 
             <div>
 
-              <label
-                htmlFor="email"
-                className="mb-2 flex items-center gap-2 text-sm font-medium text-slate-300"
-              >
-                <FiMail size={16} />
-
+              <label className="mb-2 block text-sm font-medium text-slate-300">
                 Email
               </label>
 
-              <input
-                id="email"
-                type="email"
-                value={
-                  user?.email || ""
-                }
-                disabled
-                className="w-full cursor-not-allowed rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-500 outline-none"
-              />
+              <div className="relative">
+
+                <FiMail
+                  size={17}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600"
+                />
+
+                <input
+                  type="email"
+                  value={
+                    user?.email || ""
+                  }
+                  disabled
+                  className="w-full cursor-not-allowed rounded-xl border border-slate-800 bg-slate-900 py-3 pl-11 pr-4 text-sm text-slate-500 outline-none"
+                />
+
+              </div>
 
               <p className="mt-2 text-xs text-slate-600">
-                Your email is managed by your authentication account.
+                Your authentication email cannot be changed here.
               </p>
 
             </div>
 
-            {/* SUCCESS */}
+            {/* BIO */}
 
-            {message && (
-              <div className="rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3 text-sm text-green-400">
-                {message}
-              </div>
-            )}
+            <div>
 
-            {/* ERROR */}
+              <label className="mb-2 block text-sm font-medium text-slate-300">
+                Bio
+              </label>
 
-            {error && (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
-                {error}
-              </div>
-            )}
-
-            {/* SAVE */}
-
-            <div className="flex justify-end">
-
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={
-                  saving ||
-                  uploading
+              <textarea
+                value={profile.bio}
+                onChange={(e) =>
+                  updateProfile(
+                    "bio",
+                    e.target.value
+                  )
                 }
-                className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+                placeholder="Tell something about yourself..."
+                rows={4}
+                maxLength={160}
+                className="w-full resize-none rounded-xl border border-slate-800 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              />
 
-                <FiSave size={17} />
-
-                {uploading
-                  ? "Uploading..."
-                  : saving
-                    ? "Saving..."
-                    : "Save Changes"}
-
-              </button>
+              <p className="mt-2 text-right text-xs text-slate-600">
+                {profile.bio.length}/160
+              </p>
 
             </div>
 
           </div>
 
+        </section>
+
+        {/* ================================= */}
+        {/* SAVE */}
+        {/* ================================= */}
+
+        <div className="sticky bottom-4 mt-6 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/95 p-4 shadow-2xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+
+          <div>
+
+            {saved ? (
+              <p className="text-sm font-medium text-green-400">
+                Profile saved successfully.
+              </p>
+            ) : (
+              <p className="text-sm text-slate-500">
+                Your profile is stored on this device.
+              </p>
+            )}
+
+          </div>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500"
+          >
+
+            <FiSave size={17} />
+
+            Save Profile
+
+          </button>
+
         </div>
 
       </div>
+
+    </div>
+  );
+}
+
+// =========================================
+// STAT CARD
+// =========================================
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+
+      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+        <Icon size={18} />
+      </div>
+
+      <p className="mt-4 text-xs font-medium text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-1 text-2xl font-bold text-white">
+        {value}
+      </p>
 
     </div>
   );
