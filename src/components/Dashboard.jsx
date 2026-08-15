@@ -1,36 +1,47 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
+import { supabase } from "../supabaseClient";
 
 import TaskForm from "./TaskForm";
-import TaskList from "./TaskList";
 import CategoryManager from "./CategoryManager";
 import Navbar from "./Navbar";
 import StatsCard from "./StatsCard";
 import ToastContainer from "./ToastContainer";
-import CalendarView from "./CalendarView";
-import Analytics from "./Analytics";
 
 import {
   FiCheckSquare,
   FiClock,
   FiCheckCircle,
   FiPlus,
+  FiList,
+  FiBarChart2,
+  FiCalendar,
 } from "react-icons/fi";
 
 function Dashboard({ user, onLogout }) {
-  // =========================
+  // =========================================
   // STATES
-  // =========================
+  // =========================================
 
-  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showTaskForm, setShowTaskForm] =
+    useState(false);
 
   const [showCategoryManager, setShowCategoryManager] =
     useState(false);
 
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] =
+    useState(0);
 
-  const [editingTask, setEditingTask] = useState(null);
+  const [editingTask, setEditingTask] =
+    useState(null);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] =
+    useState("");
+
+  // =========================================
+  // DASHBOARD STATS
+  // =========================================
 
   const [stats, setStats] = useState({
     total: 0,
@@ -38,16 +49,22 @@ function Dashboard({ user, onLogout }) {
     completed: 0,
   });
 
-  const [analyticsTasks, setAnalyticsTasks] = useState([]);
+  const [statsLoading, setStatsLoading] =
+    useState(true);
 
-  // =========================
-  // TOAST
-  // =========================
+  // =========================================
+  // TOASTS
+  // =========================================
 
-  const [toasts, setToasts] = useState([]);
+  const [toasts, setToasts] =
+    useState([]);
 
-  const addToast = (message, type = "success") => {
-    const id = Date.now() + Math.random();
+  const addToast = (
+    message,
+    type = "success"
+  ) => {
+    const id =
+      Date.now() + Math.random();
 
     setToasts((prev) => [
       ...prev,
@@ -60,53 +77,186 @@ function Dashboard({ user, onLogout }) {
 
     setTimeout(() => {
       setToasts((prev) =>
-        prev.filter((toast) => toast.id !== id)
+        prev.filter(
+          (toast) =>
+            toast.id !== id
+        )
       );
     }, 3000);
   };
 
   const removeToast = (id) => {
     setToasts((prev) =>
-      prev.filter((toast) => toast.id !== id)
+      prev.filter(
+        (toast) =>
+          toast.id !== id
+      )
     );
   };
 
-  // =========================
+  // =========================================
   // USER NAME
-  // =========================
+  // =========================================
 
   const userName =
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "User";
 
-  // =========================
-  // COMPLETION %
-  // =========================
+  // =========================================
+  // FETCH DASHBOARD STATS
+  // =========================================
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchDashboardStats() {
+      if (!user?.id) {
+        if (mounted) {
+          setStats({
+            total: 0,
+            active: 0,
+            completed: 0,
+          });
+
+          setStatsLoading(false);
+        }
+
+        return;
+      }
+
+      try {
+        setStatsLoading(true);
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("tasks")
+          .select("completed")
+          .eq("user_id", user.id);
+
+        if (error) {
+          throw error;
+        }
+
+        const taskData = data || [];
+
+        const total =
+          taskData.length;
+
+        const completed =
+          taskData.filter(
+            (task) =>
+              task.completed === true
+          ).length;
+
+        const active =
+          total - completed;
+
+        if (mounted) {
+          setStats({
+            total,
+            active,
+            completed,
+          });
+        }
+      } catch (error) {
+        console.error(
+          "Dashboard stats error:",
+          error
+        );
+
+        if (mounted) {
+          setStats({
+            total: 0,
+            active: 0,
+            completed: 0,
+          });
+        }
+      } finally {
+        if (mounted) {
+          setStatsLoading(false);
+        }
+      }
+    }
+
+    fetchDashboardStats();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, refreshKey]);
+
+  // =========================================
+  // COMPLETION PERCENTAGE
+  // =========================================
 
   const completionPercentage =
     stats.total === 0
       ? 0
       : Math.round(
-          (stats.completed / stats.total) * 100
+          (stats.completed /
+            stats.total) *
+            100
         );
 
-  // =========================
+  // =========================================
   // CLOSE CATEGORY MANAGER
-  // =========================
+  // =========================================
 
   const closeCategoryManager = () => {
     setShowCategoryManager(false);
 
-    setRefreshKey((prev) => prev + 1);
+    setRefreshKey(
+      (prev) => prev + 1
+    );
   };
+
+  // =========================================
+  // TASK CREATED
+  // =========================================
+
+  const handleTaskCreated = () => {
+    setShowTaskForm(false);
+
+    setRefreshKey(
+      (prev) => prev + 1
+    );
+
+    addToast(
+      "Task created successfully",
+      "success"
+    );
+  };
+
+  // =========================================
+  // TASK UPDATED
+  // =========================================
+
+  const handleTaskUpdated = () => {
+    setEditingTask(null);
+
+    setRefreshKey(
+      (prev) => prev + 1
+    );
+
+    addToast(
+      "Task updated successfully",
+      "success"
+    );
+  };
+
+  // =========================================
+  // RENDER
+  // =========================================
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
 
-      {/* ========================= */}
+      {/* ===================================== */}
       {/* NAVBAR */}
-      {/* ========================= */}
+      {/* ===================================== */}
 
       <Navbar
         user={user}
@@ -115,15 +265,15 @@ function Dashboard({ user, onLogout }) {
         setSearchQuery={setSearchQuery}
       />
 
-      {/* ========================= */}
+      {/* ===================================== */}
       {/* MAIN */}
-      {/* ========================= */}
+      {/* ===================================== */}
 
       <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-8">
 
-        {/* ========================= */}
+        {/* ================================= */}
         {/* WELCOME */}
-        {/* ========================= */}
+        {/* ================================= */}
 
         <section className="mb-8 sm:mb-10">
 
@@ -141,44 +291,68 @@ function Dashboard({ user, onLogout }) {
 
         </section>
 
-        {/* ========================= */}
+        {/* ================================= */}
         {/* STATS */}
-        {/* ========================= */}
+        {/* ================================= */}
 
         <section className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
 
+          {/* TOTAL */}
+
           <StatsCard
             title="Total Tasks"
-            value={stats.total}
+            value={
+              statsLoading
+                ? "..."
+                : stats.total
+            }
             description="All your tasks"
-            icon={<FiCheckSquare size={24} />}
+            icon={
+              <FiCheckSquare size={24} />
+            }
             iconClassName="bg-blue-500/10 text-blue-400"
             hoverClassName="hover:border-blue-500/30"
           />
 
+          {/* ACTIVE */}
+
           <StatsCard
             title="Active Tasks"
-            value={stats.active}
+            value={
+              statsLoading
+                ? "..."
+                : stats.active
+            }
             description="Tasks still in progress"
-            icon={<FiClock size={24} />}
+            icon={
+              <FiClock size={24} />
+            }
             iconClassName="bg-yellow-500/10 text-yellow-400"
             hoverClassName="hover:border-yellow-500/30"
           />
 
+          {/* COMPLETED */}
+
           <StatsCard
             title="Completed"
-            value={stats.completed}
+            value={
+              statsLoading
+                ? "..."
+                : stats.completed
+            }
             description="Tasks you finished"
-            icon={<FiCheckCircle size={24} />}
+            icon={
+              <FiCheckCircle size={24} />
+            }
             iconClassName="bg-green-500/10 text-green-400"
             hoverClassName="hover:border-green-500/30"
           />
 
         </section>
 
-        {/* ========================= */}
-        {/* PROGRESS */}
-        {/* ========================= */}
+        {/* ================================= */}
+        {/* OVERALL PROGRESS */}
+        {/* ================================= */}
 
         <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:mt-5 sm:p-6">
 
@@ -191,13 +365,16 @@ function Dashboard({ user, onLogout }) {
               </p>
 
               <p className="mt-1 text-sm text-slate-500">
-                {stats.completed} of {stats.total} tasks completed
+                {stats.completed} of{" "}
+                {stats.total} tasks completed
               </p>
 
             </div>
 
             <div className="text-2xl font-bold text-white">
-              {completionPercentage}%
+              {statsLoading
+                ? "..."
+                : `${completionPercentage}%`}
             </div>
 
           </div>
@@ -215,109 +392,156 @@ function Dashboard({ user, onLogout }) {
 
         </section>
 
-
-        {/* ========================= */}
-        {/* PRODUCTIVITY ANALYTICS */}
-        {/* ========================= */}
-
-        <Analytics tasks={analyticsTasks} />
-
-        {/* ========================= */}
-        {/* CALENDAR */}
-        {/* ========================= */}
-
-        <section className="mt-10">
-          <CalendarView user={user} 
-          refreshKey={refreshKey}
-          onEditTask={(task) => {
-            setEditingTask(task);
-          }}
-          addToast={addToast}
-          />
-        </section>
-
-        {/* ========================= */}
-        {/* TASK SECTION */}
-        {/* ========================= */}
+        {/* ================================= */}
+        {/* QUICK ACTIONS */}
+        {/* ================================= */}
 
         <section className="mt-8 sm:mt-10">
 
-          {/* ========================= */}
-          {/* TASK HEADER */}
-          {/* ========================= */}
+          <div className="mb-5">
 
-          <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <h3 className="text-xl font-bold text-white">
+              Quick Actions
+            </h3>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Jump directly to what you need.
+            </p>
+
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+            {/* ADD TASK */}
+
+            <button
+              type="button"
+              onClick={() =>
+                setShowTaskForm(true)
+              }
+              className="group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-500/40 hover:bg-blue-500/10"
+            >
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                <FiPlus size={22} />
+              </div>
+
+              <h4 className="mt-4 font-semibold text-white">
+                Add Task
+              </h4>
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Create a new task and start working.
+              </p>
+
+            </button>
+
+            {/* VIEW TASKS */}
+
+            <Link
+              to="/tasks"
+              className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
+            >
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-300">
+                <FiList size={22} />
+              </div>
+
+              <h4 className="mt-4 font-semibold text-white">
+                View Tasks
+              </h4>
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Manage, filter and organize your tasks.
+              </p>
+
+            </Link>
+
+            {/* ANALYTICS */}
+
+            <Link
+              to="/analytics"
+              className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
+            >
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
+                <FiBarChart2 size={22} />
+              </div>
+
+              <h4 className="mt-4 font-semibold text-white">
+                View Analytics
+              </h4>
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Track your productivity and progress.
+              </p>
+
+            </Link>
+
+            {/* CALENDAR */}
+
+            <Link
+              to="/calendar"
+              className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
+            >
+
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
+                <FiCalendar size={22} />
+              </div>
+
+              <h4 className="mt-4 font-semibold text-white">
+                Open Calendar
+              </h4>
+
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Plan your tasks by date.
+              </p>
+
+            </Link>
+
+          </div>
+
+        </section>
+
+        {/* ================================= */}
+        {/* CATEGORY MANAGEMENT */}
+        {/* ================================= */}
+
+        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:mt-10 sm:p-6">
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
             <div>
 
-              <h3 className="text-xl font-bold">
-                My Tasks
+              <h3 className="font-semibold text-white">
+                Categories
               </h3>
 
               <p className="mt-1 text-sm text-slate-500">
-                Manage your daily tasks.
+                Organize your tasks with custom categories.
               </p>
 
             </div>
 
-            {/* ========================= */}
-            {/* ACTION BUTTONS */}
-            {/* ========================= */}
-
-            <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:w-auto lg:flex lg:items-center">
-
-              {/* MANAGE CATEGORIES */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowCategoryManager(true)
-                }
-                className="flex w-full items-center justify-center rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white active:scale-[0.98] lg:w-auto"
-              >
-                Manage Categories
-              </button>
-
-              {/* ADD TASK */}
-
-              <button
-                type="button"
-                onClick={() =>
-                  setShowTaskForm(true)
-                }
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white transition hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 active:scale-[0.98] lg:w-auto"
-              >
-                <FiPlus size={18} />
-                Add Task
-              </button>
-
-            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setShowCategoryManager(true)
+              }
+              className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white"
+            >
+              Manage Categories
+            </button>
 
           </div>
-
-          {/* ========================= */}
-          {/* TASK LIST */}
-          {/* ========================= */}
-
-          <TaskList
-            user={user}
-            refreshKey={refreshKey}
-            searchQuery={searchQuery}
-            onStatsChange={setStats}
-            onTasksChange={setAnalyticsTasks}
-            onEditTask={(task) => {
-              setEditingTask(task);
-            }}
-            addToast={addToast}
-          />
 
         </section>
 
       </main>
 
-      {/* ========================= */}
+      {/* ===================================== */}
       {/* ADD TASK MODAL */}
-      {/* ========================= */}
+      {/* ===================================== */}
 
       {showTaskForm && (
         <TaskForm
@@ -325,24 +549,13 @@ function Dashboard({ user, onLogout }) {
           onClose={() =>
             setShowTaskForm(false)
           }
-          onTaskCreated={() => {
-            setShowTaskForm(false);
-
-            setRefreshKey(
-              (prev) => prev + 1
-            );
-
-            addToast(
-              "Task created successfully",
-              "success"
-            );
-          }}
+          onTaskCreated={handleTaskCreated}
         />
       )}
 
-      {/* ========================= */}
+      {/* ===================================== */}
       {/* EDIT TASK MODAL */}
-      {/* ========================= */}
+      {/* ===================================== */}
 
       {editingTask && (
         <TaskForm
@@ -351,38 +564,25 @@ function Dashboard({ user, onLogout }) {
           onClose={() =>
             setEditingTask(null)
           }
-          onTaskUpdated={() => {
-            setEditingTask(null);
-
-            setRefreshKey(
-              (prev) => prev + 1
-            );
-
-            addToast(
-              "Task updated successfully",
-              "success"
-            );
-          }}
+          onTaskUpdated={handleTaskUpdated}
         />
       )}
 
-      {/* ========================= */}
+      {/* ===================================== */}
       {/* CATEGORY MANAGER */}
-      {/* ========================= */}
+      {/* ===================================== */}
 
       {showCategoryManager && (
         <CategoryManager
           user={user}
-          onClose={
-            closeCategoryManager
-          }
+          onClose={closeCategoryManager}
           addToast={addToast}
         />
       )}
 
-      {/* ========================= */}
-      {/* TOAST CONTAINER */}
-      {/* ========================= */}
+      {/* ===================================== */}
+      {/* TOAST */}
+      {/* ===================================== */}
 
       <ToastContainer
         toasts={toasts}
