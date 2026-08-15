@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   FiUser,
   FiMail,
@@ -7,6 +8,7 @@ import {
   FiCheckCircle,
   FiList,
   FiTrendingUp,
+  FiTrash2,
 } from "react-icons/fi";
 
 import { supabase } from "../supabaseClient";
@@ -25,39 +27,97 @@ function Profile({ user }) {
     rate: 0,
   });
 
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
   // =========================================
   // LOAD PROFILE
   // =========================================
 
   useEffect(() => {
-    const storedProfile =
-      localStorage.getItem(
-        "taskflow-profile"
-      );
+    if (!user?.id) return;
 
-    if (storedProfile) {
+    async function loadProfile() {
       try {
-        setProfile(
-          JSON.parse(storedProfile)
-        );
-      } catch (error) {
-        console.error(
-          "Profile load error:",
-          error
-        );
-      }
-    } else {
-      setProfile({
-        name:
+        setLoading(true);
+        setError("");
+
+        const { data, error: fetchError } = await supabase
+          .from("profiles")
+          .select("id, name, bio, avatar_url, updated_at")
+          .eq("id", user.id)
+          .maybeSingle();
+
+        if (fetchError) {
+          throw fetchError;
+        }
+
+        // =====================================
+        // PROFILE EXISTS
+        // =====================================
+
+        if (data) {
+          setProfile({
+            name: data.name || "",
+            bio: data.bio || "",
+            avatar: data.avatar_url || "",
+          });
+
+          return;
+        }
+
+        // =====================================
+        // CREATE PROFILE
+        // =====================================
+
+        const defaultName =
           user?.user_metadata?.name ||
           user?.user_metadata?.full_name ||
-          "",
-        bio: "Developer & Student",
-        avatar: "",
-      });
+          user?.email?.split("@")[0] ||
+          "User";
+
+        const newProfile = {
+          id: user.id,
+          name: defaultName,
+          bio: "Developer & Student",
+          avatar_url: "",
+          updated_at: new Date().toISOString(),
+        };
+
+        const {
+          data: createdProfile,
+          error: createError,
+        } = await supabase
+          .from("profiles")
+          .insert(newProfile)
+          .select("id, name, bio, avatar_url")
+          .single();
+
+        if (createError) {
+          throw createError;
+        }
+
+        setProfile({
+          name: createdProfile?.name || "",
+          bio: createdProfile?.bio || "",
+          avatar: createdProfile?.avatar_url || "",
+        });
+      } catch (profileError) {
+        console.error("Profile load error:", profileError);
+
+        setError(
+          profileError?.message ||
+            "Unable to load profile."
+        );
+      } finally {
+        setLoading(false);
+      }
     }
+
+    loadProfile();
   }, [user]);
 
   // =========================================
@@ -65,38 +125,32 @@ function Profile({ user }) {
   // =========================================
 
   useEffect(() => {
-    const fetchStats = async () => {
-      if (!user?.id) return;
+    if (!user?.id) return;
 
+    async function fetchStats() {
       try {
-        const { data, error } =
-          await supabase
-            .from("tasks")
-            .select("completed")
-            .eq("user_id", user.id);
+        const { data, error: statsError } = await supabase
+          .from("tasks")
+          .select("completed")
+          .eq("user_id", user.id);
 
-        if (error) {
-          throw error;
+        if (statsError) {
+          throw statsError;
         }
 
         const tasks = data || [];
 
         const total = tasks.length;
 
-        const completed =
-          tasks.filter(
-            (task) =>
-              task.completed === true
-          ).length;
+        const completed = tasks.filter(
+          (task) => task.completed === true
+        ).length;
 
-        const active =
-          total - completed;
+        const active = total - completed;
 
         const rate =
           total > 0
-            ? Math.round(
-                (completed / total) * 100
-              )
+            ? Math.round((completed / total) * 100)
             : 0;
 
         setStats({
@@ -105,83 +159,484 @@ function Profile({ user }) {
           active,
           rate,
         });
-      } catch (error) {
+      } catch (statsError) {
         console.error(
           "Profile stats error:",
-          error
+          statsError
         );
       }
-    };
+    }
 
     fetchStats();
   }, [user]);
 
   // =========================================
-  // UPDATE PROFILE
+  // UPDATE PROFILE STATE
   // =========================================
 
-  const updateProfile = (
-    key,
-    value
-  ) => {
+  function updateProfile(key, value) {
     setProfile((prev) => ({
       ...prev,
       [key]: value,
     }));
 
     setSaved(false);
-  };
+    setError("");
+  }
 
   // =========================================
-  // IMAGE UPLOAD
+  // CONVERT IMAGE TO PNG
   // =========================================
 
-  const handleAvatarChange = (
-    event
-  ) => {
-    const file =
-      event.target.files?.[0];
+  async function convertImageToPng(file) {
+    const imageUrl = URL.createObjectURL(file);
+
+    try {
+      const image = new Image();
+
+      image.src = imageUrl;
+
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+      });
+
+      const maxSize = 800;
+
+      let width = image.naturalWidth;
+      let height = image.naturalHeight;
+
+      if (width > maxSize || height > maxSize) {
+        if (width > height) {
+          height = (height / width) * maxSize;
+          width = maxSize;
+        } else {
+          width = (width / height) * maxSize;
+          height = maxSize;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+
+      canvas.width = Math.round(width);
+      canvas.height = Math.round(height);
+
+      const context = canvas.getContext("2d");
+
+      if (!context) {
+        throw new Error(
+          "Unable to process image."
+        );
+      }
+
+      context.drawImage(
+        image,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      const pngBlob = await new Promise((resolve) => {
+        canvas.toBlob(
+          resolve,
+          "image/png",
+          0.9
+        );
+      });
+
+      if (!pngBlob) {
+        throw new Error(
+          "Unable to convert image."
+        );
+      }
+
+      return new File(
+        [pngBlob],
+        "avatar.png",
+        {
+          type: "image/png",
+        }
+      );
+    } finally {
+      URL.revokeObjectURL(imageUrl);
+    }
+  }
+
+  // =========================================
+  // SAVE AVATAR URL TO DATABASE
+  // =========================================
+
+  async function saveAvatarToDatabase(avatarUrl) {
+    if (!user?.id) {
+      throw new Error(
+        "User session not available."
+      );
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert(
+        {
+          id: user.id,
+          name: profile.name.trim(),
+          bio: profile.bio.trim(),
+          avatar_url: avatarUrl || "",
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: "id",
+        }
+      );
+
+    if (error) {
+      throw error;
+    }
+
+    // Update Supabase auth metadata too
+    const { error: authError } =
+      await supabase.auth.updateUser({
+        data: {
+          name: profile.name.trim(),
+          full_name: profile.name.trim(),
+          avatar_url: avatarUrl || "",
+        },
+      });
+
+    if (authError) {
+      console.warn(
+        "Auth metadata update warning:",
+        authError
+      );
+    }
+
+    // Tell the rest of TaskFlow that profile changed
+    window.dispatchEvent(
+      new Event("taskflow-profile-updated")
+    );
+  }
+
+  // =========================================
+  // UPLOAD AVATAR
+  // =========================================
+
+  async function uploadAvatar(file) {
+    if (!user?.id || !file) {
+      return null;
+    }
+
+    try {
+      setUploading(true);
+      setError("");
+
+      // =====================================
+      // VALIDATE
+      // =====================================
+
+      if (!file.type.startsWith("image/")) {
+        throw new Error(
+          "Please select a valid image."
+        );
+      }
+
+      // Allow large original images because
+      // we resize them before uploading.
+      if (file.size > 10 * 1024 * 1024) {
+        throw new Error(
+          "Image must be smaller than 10MB."
+        );
+      }
+
+      // =====================================
+      // CONVERT
+      // =====================================
+
+      const pngFile =
+        await convertImageToPng(file);
+
+      // =====================================
+      // FINAL SIZE CHECK
+      // =====================================
+
+      if (pngFile.size > 2 * 1024 * 1024) {
+        throw new Error(
+          "Processed image is still larger than 2MB. Please choose a smaller image."
+        );
+      }
+
+      // =====================================
+      // STORAGE PATH
+      // =====================================
+
+      const filePath =
+        `${user.id}/avatar.png`;
+
+      // =====================================
+      // DELETE OLD AVATAR FIRST
+      // =====================================
+
+      const { error: removeOldError } =
+        await supabase.storage
+          .from("avatars")
+          .remove([filePath]);
+
+      // Ignore "not found" style errors
+      // because the file may not exist yet.
+      if (
+        removeOldError &&
+        !removeOldError.message
+          ?.toLowerCase()
+          .includes("not found")
+      ) {
+        console.warn(
+          "Old avatar removal warning:",
+          removeOldError
+        );
+      }
+
+      // =====================================
+      // UPLOAD NEW AVATAR
+      // =====================================
+
+      const { error: uploadError } =
+        await supabase.storage
+          .from("avatars")
+          .upload(
+            filePath,
+            pngFile,
+            {
+              cacheControl: "3600",
+              upsert: true,
+              contentType: "image/png",
+            }
+          );
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // =====================================
+      // PUBLIC URL
+      // =====================================
+
+      const {
+        data: publicUrlData,
+      } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      const publicUrl =
+        publicUrlData?.publicUrl;
+
+      if (!publicUrl) {
+        throw new Error(
+          "Unable to generate avatar URL."
+        );
+      }
+
+      // =====================================
+      // SAVE URL IN DATABASE IMMEDIATELY
+      // =====================================
+
+      await saveAvatarToDatabase(
+        publicUrl
+      );
+
+      // =====================================
+      // CACHE BUST ONLY FOR UI
+      // =====================================
+
+      const displayUrl =
+        `${publicUrl}?v=${Date.now()}`;
+
+      return displayUrl;
+    } catch (uploadError) {
+      console.error(
+        "Avatar upload error:",
+        uploadError
+      );
+
+      setError(
+        uploadError?.message ||
+          "Unable to upload image."
+      );
+
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  // =========================================
+  // AVATAR CHANGE
+  // =========================================
+
+  async function handleAvatarChange(event) {
+    const file = event.target.files?.[0];
 
     if (!file) return;
 
-    // 2 MB limit
-    if (file.size > 2 * 1024 * 1024) {
-      alert(
-        "Please choose an image smaller than 2MB."
-      );
+    const avatarUrl =
+      await uploadAvatar(file);
 
-      return;
-    }
-
-    const reader =
-      new FileReader();
-
-    reader.onload = () => {
+    if (avatarUrl) {
       updateProfile(
         "avatar",
-        reader.result
+        avatarUrl
       );
-    };
 
-    reader.readAsDataURL(file);
-  };
+      setSaved(true);
+
+      setTimeout(() => {
+        setSaved(false);
+      }, 2500);
+    }
+
+    event.target.value = "";
+  }
+
+  // =========================================
+  // REMOVE AVATAR
+  // =========================================
+
+  async function handleRemoveAvatar() {
+    if (!user?.id || uploading) return;
+
+    try {
+      setUploading(true);
+      setError("");
+      setSaved(false);
+
+      const filePath =
+        `${user.id}/avatar.png`;
+
+      // =====================================
+      // REMOVE STORAGE FILE
+      // =====================================
+
+      const { error: storageError } =
+        await supabase.storage
+          .from("avatars")
+          .remove([filePath]);
+
+      if (storageError) {
+        console.warn(
+          "Avatar storage removal warning:",
+          storageError
+        );
+      }
+
+      // =====================================
+      // REMOVE URL FROM DATABASE
+      // =====================================
+
+      await saveAvatarToDatabase("");
+
+      // =====================================
+      // UPDATE UI
+      // =====================================
+
+      setProfile((prev) => ({
+        ...prev,
+        avatar: "",
+      }));
+
+      setSaved(true);
+
+      setTimeout(() => {
+        setSaved(false);
+      }, 2500);
+    } catch (removeError) {
+      console.error(
+        "Remove avatar error:",
+        removeError
+      );
+
+      setError(
+        removeError?.message ||
+          "Unable to remove profile photo."
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
 
   // =========================================
   // SAVE PROFILE
   // =========================================
 
-  const handleSave = () => {
-    try {
-      localStorage.setItem(
-        "taskflow-profile",
-        JSON.stringify(profile)
-      );
+  async function handleSave() {
+    if (!user?.id) return;
 
-      //Tell the rest of the app that profile changed
+    try {
+      setSaving(true);
+      setSaved(false);
+      setError("");
+
+      const cleanName =
+        profile.name.trim();
+
+      const cleanBio =
+        profile.bio.trim();
+
+      const avatarUrl =
+        profile.avatar
+          ? profile.avatar.split("?")[0]
+          : "";
+
+      // =====================================
+      // SAVE DATABASE
+      // =====================================
+
+      const { error: updateError } =
+        await supabase
+          .from("profiles")
+          .upsert(
+            {
+              id: user.id,
+              name: cleanName,
+              bio: cleanBio,
+              avatar_url: avatarUrl,
+              updated_at:
+                new Date().toISOString(),
+            },
+            {
+              onConflict: "id",
+            }
+          );
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // =====================================
+      // UPDATE AUTH METADATA
+      // =====================================
+
+      const {
+        error: authError,
+      } = await supabase.auth.updateUser({
+        data: {
+          name: cleanName,
+          full_name: cleanName,
+          avatar_url: avatarUrl,
+        },
+      });
+
+      if (authError) {
+        console.warn(
+          "Auth metadata update warning:",
+          authError
+        );
+      }
+
+      // =====================================
+      // SYNC APP
+      // =====================================
 
       window.dispatchEvent(
         new Event(
-            "taskflow-profile-updated"
+          "taskflow-profile-updated"
         )
       );
 
@@ -190,16 +645,23 @@ function Profile({ user }) {
       setTimeout(() => {
         setSaved(false);
       }, 2500);
-    } catch (error) {
+    } catch (saveError) {
       console.error(
         "Profile save error:",
-        error
+        saveError
       );
+
+      setError(
+        saveError?.message ||
+          "Unable to save profile."
+      );
+    } finally {
+      setSaving(false);
     }
-  };
+  }
 
   // =========================================
-  // INITIAL
+  // DISPLAY DATA
   // =========================================
 
   const displayName =
@@ -212,14 +674,38 @@ function Profile({ user }) {
       .charAt(0)
       .toUpperCase();
 
+  // =========================================
+  // LOADING
+  // =========================================
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+
+        <div className="text-center">
+
+          <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-slate-800 border-t-blue-500" />
+
+          <p className="text-sm text-slate-500">
+            Loading profile...
+          </p>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  // =========================================
+  // PAGE
+  // =========================================
+
   return (
     <div className="min-h-screen bg-slate-950 px-4 py-8 text-white transition-colors duration-300 sm:px-6 lg:px-8">
 
       <div className="mx-auto max-w-5xl">
 
-        {/* ================================= */}
         {/* HEADER */}
-        {/* ================================= */}
 
         <div className="mb-8">
 
@@ -237,9 +723,15 @@ function Profile({ user }) {
 
         </div>
 
-        {/* ================================= */}
+        {/* ERROR */}
+
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
+            {error}
+          </div>
+        )}
+
         {/* PROFILE HERO */}
-        {/* ================================= */}
 
         <section className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
 
@@ -260,6 +752,10 @@ function Profile({ user }) {
                       src={profile.avatar}
                       alt="Profile"
                       className="h-full w-full object-cover"
+                      onError={(event) => {
+                        event.currentTarget.style.display =
+                          "none";
+                      }}
                     />
                   ) : (
                     initials
@@ -267,21 +763,34 @@ function Profile({ user }) {
 
                 </div>
 
+                {/* CAMERA */}
+
                 <label
                   htmlFor="avatar-upload"
-                  className="absolute bottom-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-4 border-slate-900 bg-blue-600 text-white shadow-lg transition hover:bg-blue-500"
+                  className={`absolute bottom-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-4 border-slate-900 bg-blue-600 text-white shadow-lg transition hover:bg-blue-500 ${
+                    uploading
+                      ? "pointer-events-none opacity-60"
+                      : ""
+                  }`}
                 >
-                  <FiCamera size={17} />
+
+                  {uploading ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                  ) : (
+                    <FiCamera size={17} />
+                  )}
 
                   <input
                     id="avatar-upload"
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
                     className="hidden"
+                    disabled={uploading}
                     onChange={
                       handleAvatarChange
                     }
                   />
+
                 </label>
 
               </div>
@@ -302,13 +811,30 @@ function Profile({ user }) {
 
             </div>
 
+            {/* REMOVE PHOTO */}
+
+            {profile.avatar && (
+              <button
+                type="button"
+                onClick={
+                  handleRemoveAvatar
+                }
+                disabled={uploading}
+                className="mt-4 flex items-center gap-2 text-xs font-medium text-red-400 transition hover:text-red-300 disabled:opacity-50"
+              >
+
+                <FiTrash2 size={14} />
+
+                Remove photo
+
+              </button>
+            )}
+
           </div>
 
         </section>
 
-        {/* ================================= */}
         {/* STATS */}
-        {/* ================================= */}
 
         <section className="mt-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
 
@@ -338,9 +864,7 @@ function Profile({ user }) {
 
         </section>
 
-        {/* ================================= */}
-        {/* PROFILE FORM */}
-        {/* ================================= */}
+        {/* PERSONAL INFORMATION */}
 
         <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60">
 
@@ -415,9 +939,7 @@ function Profile({ user }) {
 
                 <input
                   type="email"
-                  value={
-                    user?.email || ""
-                  }
+                  value={user?.email || ""}
                   disabled
                   className="w-full cursor-not-allowed rounded-xl border border-slate-800 bg-slate-900 py-3 pl-11 pr-4 text-sm text-slate-500 outline-none"
                 />
@@ -462,9 +984,7 @@ function Profile({ user }) {
 
         </section>
 
-        {/* ================================= */}
-        {/* SAVE */}
-        {/* ================================= */}
+        {/* SAVE BAR */}
 
         <div className="sticky bottom-4 mt-6 flex flex-col gap-3 rounded-2xl border border-slate-800 bg-slate-900/95 p-4 shadow-2xl backdrop-blur sm:flex-row sm:items-center sm:justify-between">
 
@@ -476,7 +996,7 @@ function Profile({ user }) {
               </p>
             ) : (
               <p className="text-sm text-slate-500">
-                Your profile is stored on this device.
+                Your profile is synced with your TaskFlow account.
               </p>
             )}
 
@@ -485,12 +1005,23 @@ function Profile({ user }) {
           <button
             type="button"
             onClick={handleSave}
-            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500"
+            disabled={saving || uploading}
+            className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
           >
 
-            <FiSave size={17} />
+            {saving ? (
+              <>
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
 
-            Save Profile
+                Saving...
+              </>
+            ) : (
+              <>
+                <FiSave size={17} />
+
+                Save Profile
+              </>
+            )}
 
           </button>
 

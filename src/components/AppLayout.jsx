@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 
 import {
@@ -9,7 +10,15 @@ import {
   FiLogOut,
 } from "react-icons/fi";
 
+import { supabase } from "../supabaseClient";
+
 function AppLayout({ user, onLogout }) {
+  // =========================================
+  // PROFILE STATE
+  // =========================================
+
+  const [profile, setProfile] = useState(null);
+
   const navigation = [
     {
       name: "Dashboard",
@@ -37,6 +46,108 @@ function AppLayout({ user, onLogout }) {
       icon: FiSettings,
     },
   ];
+
+  // =========================================
+  // FETCH PROFILE
+  // =========================================
+
+  async function fetchProfile() {
+    if (!user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, name, bio, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("AppLayout profile fetch error:", error);
+        return;
+      }
+
+      setProfile(data || null);
+    } catch (error) {
+      console.error("AppLayout profile error:", error);
+    }
+  }
+
+  // =========================================
+  // INITIAL PROFILE LOAD
+  // =========================================
+
+  useEffect(() => {
+    fetchProfile();
+  }, [user?.id]);
+
+  // =========================================
+  // PROFILE UPDATE LISTENER
+  // =========================================
+  //
+  // Profile.jsx will dispatch:
+  //
+  // window.dispatchEvent(
+  //   new Event("taskflow-profile-updated")
+  // );
+  //
+  // after saving/updating the profile.
+  // =========================================
+
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      fetchProfile();
+    };
+
+    window.addEventListener(
+      "taskflow-profile-updated",
+      handleProfileUpdate
+    );
+
+    return () => {
+      window.removeEventListener(
+        "taskflow-profile-updated",
+        handleProfileUpdate
+      );
+    };
+  }, [user?.id]);
+
+  // =========================================
+  // DISPLAY NAME
+  // =========================================
+
+  const displayName =
+    profile?.name ||
+    user?.user_metadata?.display_name ||
+    user?.email?.split("@")[0] ||
+    "User";
+
+  // =========================================
+  // EMAIL
+  // =========================================
+
+  const email = user?.email || "";
+
+  // =========================================
+  // AVATAR URL
+  // =========================================
+
+  const avatarUrl = profile?.avatar_url
+    ? `${profile.avatar_url}${
+        profile.avatar_url.includes("?") ? "&" : "?"
+      }t=${Date.now()}`
+    : null;
+
+  // =========================================
+  // AVATAR INITIAL
+  // =========================================
+
+  const avatarInitial = displayName
+    .charAt(0)
+    .toUpperCase();
+
+  // =========================================
+  // UI
+  // =========================================
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">
@@ -84,7 +195,7 @@ function AppLayout({ user, onLogout }) {
 
             <div className="flex min-w-[224px] items-center">
 
-              {/* Logo mark */}
+              {/* Logo */}
 
               <div
                 className="
@@ -137,8 +248,6 @@ function AppLayout({ user, onLogout }) {
 
           <nav className="flex-1 space-y-1 overflow-hidden px-3 py-6">
 
-            {/* Section title */}
-
             <div className="mb-3 h-4 overflow-hidden px-3">
 
               <p
@@ -182,7 +291,6 @@ function AppLayout({ user, onLogout }) {
                     font-medium
                     transition-all
                     duration-200
-
                     ${
                       isActive
                         ? "bg-blue-500/10 text-blue-400"
@@ -194,7 +302,6 @@ function AppLayout({ user, onLogout }) {
 
                   {({ isActive }) => (
                     <>
-
                       {/* Icon */}
 
                       <Icon
@@ -204,7 +311,6 @@ function AppLayout({ user, onLogout }) {
                           shrink-0
                           transition-colors
                           duration-200
-
                           ${
                             isActive
                               ? "text-blue-400"
@@ -246,7 +352,6 @@ function AppLayout({ user, onLogout }) {
                           "
                         />
                       )}
-
                     </>
                   )}
 
@@ -262,7 +367,9 @@ function AppLayout({ user, onLogout }) {
 
           <div className="shrink-0 border-t border-slate-800 p-3">
 
-            {/* User card */}
+            {/* ===================================== */}
+            {/* PROFILE */}
+            {/* ===================================== */}
 
             <NavLink
               to="/profile"
@@ -286,26 +393,41 @@ function AppLayout({ user, onLogout }) {
 
               <div
                 className="
+                  relative
                   flex
                   h-9
                   w-9
                   shrink-0
                   items-center
                   justify-center
+                  overflow-hidden
                   rounded-full
+                  border
+                  border-slate-700
                   bg-blue-500/10
                   text-sm
                   font-semibold
                   text-blue-400
                 "
               >
-                {(
-                  user?.user_metadata?.display_name ||
-                  user?.email ||
-                  "U"
-                )
-                  .charAt(0)
-                  .toUpperCase()}
+
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="
+                      h-full
+                      w-full
+                      object-cover
+                    "
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  avatarInitial
+                )}
+
               </div>
 
               {/* User details */}
@@ -322,12 +444,10 @@ function AppLayout({ user, onLogout }) {
               >
 
                 <p className="truncate whitespace-nowrap text-sm font-semibold text-slate-200">
-                  {user?.user_metadata?.display_name ||
-                    user?.email?.split("@")[0] ||
-                    "User"}
+                  {displayName}
                 </p>
 
-                <p className="mt-0.5 whitespace-nowrap text-xs text-slate-600">
+                <p className="mt-0.5 truncate whitespace-nowrap text-xs text-slate-600">
                   View Profile
                 </p>
 
@@ -335,7 +455,9 @@ function AppLayout({ user, onLogout }) {
 
             </NavLink>
 
-            {/* Logout */}
+            {/* ===================================== */}
+            {/* LOGOUT */}
+            {/* ===================================== */}
 
             <button
               type="button"
@@ -400,6 +522,7 @@ function AppLayout({ user, onLogout }) {
               flex
               h-16
               items-center
+              justify-between
               border-b
               border-slate-800
               bg-slate-950/90
@@ -416,15 +539,27 @@ function AppLayout({ user, onLogout }) {
                   flex
                   h-9
                   w-9
+                  shrink-0
                   items-center
                   justify-center
+                  overflow-hidden
                   rounded-xl
                   bg-blue-500/10
                   font-bold
                   text-blue-400
                 "
               >
-                T
+
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  "T"
+                )}
+
               </div>
 
               <h1 className="text-lg font-bold text-white">
