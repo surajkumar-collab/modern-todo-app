@@ -50,3 +50,128 @@ body {
 .check-pop {
   animation: check-pop 0.25s ease-out;
 }
+
+/* =========================================
+   TASKFLOW LIGHT THEME
+========================================= */
+
+.theme-light {
+  color-scheme: light;
+}
+
+.theme-light body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+/* Backgrounds */
+
+.theme-light .bg-slate-950 {
+  background-color: #f8fafc;
+}
+
+.theme-light .bg-slate-900 {
+  background-color: #ffffff;
+}
+
+.theme-light .bg-slate-900\/60 {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+
+.theme-light .bg-slate-900\/90 {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+/* Borders */
+
+.theme-light .border-slate-800 {
+  border-color: #e2e8f0;
+}
+
+.theme-light .divide-slate-800 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #e2e8f0;
+}
+
+/* Text */
+
+.theme-light .text-white {
+  color: #0f172a;
+}
+
+.theme-light .text-slate-200 {
+  color: #334155;
+}
+
+.theme-light .text-slate-300 {
+  color: #475569;
+}
+
+.theme-light .text-slate-400 {
+  color: #64748b;
+}
+
+.theme-light .text-slate-500 {
+  color: #64748b;
+}
+
+.theme-light .text-slate-600 {
+  color: #94a3b8;
+}
+
+/* Inputs */
+
+.theme-light input,
+.theme-light select,
+.theme-light textarea {
+  background-color: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #94a3b8;
+}
+
+/* Select options */
+
+.theme-light option {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+/* Hover */
+
+.theme-light .hover\:bg-slate-900:hover {
+  background-color: #f1f5f9;
+}
+
+.theme-light .hover\:text-slate-200:hover {
+  color: #1e293b;
+}
+
+/* Sidebar */
+
+.theme-light aside {
+  background-color: #ffffff;
+  border-color: #e2e8f0;
+}
+
+/* Sticky headers */
+
+.theme-light .backdrop-blur {
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+/* Cards */
+
+.theme-light .bg-slate-900\/60 {
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.05);
+}
+
+/* Disabled fields */
+
+.theme-light .cursor-not-allowed {
+  background-color: #f1f5f9;
+}

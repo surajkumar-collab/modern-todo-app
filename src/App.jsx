@@ -15,6 +15,7 @@ import Tasks from "./components/Tasks";
 import AnalyticsPage from "./components/AnalyticsPage";
 import CalendarPage from "./components/CalendarPage";
 import Profile from "./components/Profile";
+import Settings from "./components/Settings";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -227,36 +228,11 @@ function App() {
           <Route
             path="/settings"
             element={
-              <div className="min-h-screen bg-slate-950 p-6 text-white sm:p-8">
-
-                <div className="mx-auto max-w-7xl">
-
-                  <p className="text-sm font-medium text-blue-400">
-                    PREFERENCES
-                  </p>
-
-                  <h1 className="mt-1 text-3xl font-bold">
-                    Settings
-                  </h1>
-
-                  <p className="mt-2 text-sm text-slate-500">
-                    Manage your TaskFlow preferences.
-                  </p>
-
-                  <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/60 p-8">
-
-                    <p className="text-sm text-slate-500">
-                      Settings page coming next.
-                    </p>
-
-                  </div>
-
-                </div>
-
-              </div>
+              <Settings
+                onLogout={handleLogout}
+              />
             }
           />
-
           {/* ================================= */}
           {/* ROOT */}
           {/* ================================= */}

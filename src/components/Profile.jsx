@@ -1,23 +1,200 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FiUser,
   FiMail,
   FiSave,
+  FiCamera,
+  FiTrash2,
 } from "react-icons/fi";
+
+import { supabase } from "../supabaseClient";
 
 function Profile({ user }) {
   const [fullName, setFullName] = useState(
     user?.user_metadata?.full_name || ""
   );
 
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState(
+    user?.user_metadata?.avatar_url || ""
+  );
+
+  const [selectedFile, setSelectedFile] =
+    useState(null);
+
+  const [previewUrl, setPreviewUrl] =
+    useState(
+      user?.user_metadata?.avatar_url || ""
+    );
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [uploading, setUploading] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  const [error, setError] =
+    useState("");
+
+  // =========================================
+  // LOAD USER DATA
+  // =========================================
+
+  useEffect(() => {
+    const name =
+      user?.user_metadata?.full_name || "";
+
+    const avatar =
+      user?.user_metadata?.avatar_url || "";
+
+    setFullName(name);
+    setAvatarUrl(avatar);
+    setPreviewUrl(avatar);
+  }, [user]);
+
+  // =========================================
+  // DISPLAY NAME
+  // =========================================
 
   const displayName =
     fullName ||
     user?.email?.split("@")[0] ||
     "User";
+
+  // =========================================
+  // SELECT PHOTO
+  // =========================================
+
+  const handleFileChange = (event) => {
+    const file =
+      event.target.files?.[0];
+
+    if (!file) return;
+
+    setMessage("");
+    setError("");
+
+    // 2MB limit
+    if (file.size > 2 * 1024 * 1024) {
+      setError(
+        "Image must be smaller than 2MB."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    // Image validation
+    if (!file.type.startsWith("image/")) {
+      setError(
+        "Please select a valid image."
+      );
+
+      event.target.value = "";
+      return;
+    }
+
+    setSelectedFile(file);
+
+    const localPreview =
+      URL.createObjectURL(file);
+
+    setPreviewUrl(localPreview);
+  };
+
+  // =========================================
+  // UPLOAD AVATAR
+  // =========================================
+
+  const uploadAvatar = async () => {
+    if (!selectedFile || !user?.id) {
+      return avatarUrl;
+    }
+
+    try {
+      setUploading(true);
+      setError("");
+
+      const fileExtension =
+        selectedFile.name
+          .split(".")
+          .pop()
+          ?.toLowerCase() || "jpg";
+
+      const filePath = `${user.id}/avatar.${fileExtension}`;
+
+      // Upload / replace existing avatar
+      const {
+        error: uploadError,
+      } = await supabase.storage
+        .from("avatars")
+        .upload(
+          filePath,
+          selectedFile,
+          {
+            cacheControl: "3600",
+            upsert: true,
+            contentType:
+              selectedFile.type,
+          }
+        );
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const {
+        data: publicUrlData,
+      } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(filePath);
+
+      const publicUrl =
+        publicUrlData?.publicUrl;
+
+      if (!publicUrl) {
+        throw new Error(
+          "Could not generate avatar URL."
+        );
+      }
+
+      // Cache-busting
+      const finalUrl =
+        `${publicUrl}?t=${Date.now()}`;
+
+      setAvatarUrl(finalUrl);
+      setPreviewUrl(finalUrl);
+      setSelectedFile(null);
+
+      return finalUrl;
+    } catch (uploadError) {
+      console.error(
+        "Avatar upload error:",
+        uploadError
+      );
+
+      throw uploadError;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // =========================================
+  // REMOVE AVATAR
+  // =========================================
+
+  const handleRemoveAvatar = () => {
+    setSelectedFile(null);
+    setAvatarUrl("");
+    setPreviewUrl("");
+
+    setMessage(
+      "Photo will be removed when you save."
+    );
+  };
 
   // =========================================
   // SAVE PROFILE
@@ -29,24 +206,54 @@ function Profile({ user }) {
       setMessage("");
       setError("");
 
-      // Supabase connection will be added
-      // in the next step.
+      let finalAvatarUrl =
+        avatarUrl;
 
-      await new Promise((resolve) =>
-        setTimeout(resolve, 500)
-      );
+      // Upload selected image
+      if (selectedFile) {
+        finalAvatarUrl =
+          await uploadAvatar();
+      }
+
+      // Update Supabase user metadata
+      const {
+        data,
+        error: updateError,
+      } = await supabase.auth.updateUser({
+        data: {
+          full_name:
+            fullName.trim(),
+          avatar_url:
+            finalAvatarUrl || null,
+        },
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local state
+      const updatedAvatar =
+        data?.user?.user_metadata
+          ?.avatar_url ||
+        finalAvatarUrl ||
+        "";
+
+      setAvatarUrl(updatedAvatar);
+      setPreviewUrl(updatedAvatar);
 
       setMessage(
-        "Profile saved successfully."
+        "Profile updated successfully."
       );
-    } catch (error) {
+    } catch (saveError) {
       console.error(
-        "Profile update error:",
-        error
+        "Profile save error:",
+        saveError
       );
 
       setError(
-        "Unable to save profile."
+        saveError?.message ||
+          "Unable to save profile."
       );
     } finally {
       setSaving(false);
@@ -84,21 +291,51 @@ function Profile({ user }) {
 
         <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60">
 
-          {/* ================================= */}
           {/* PROFILE HEADER */}
-          {/* ================================= */}
 
           <div className="border-b border-slate-800 p-6 sm:p-8">
 
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
 
               {/* AVATAR */}
 
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-2xl font-bold text-blue-400 ring-1 ring-blue-500/20">
+              <div className="relative">
 
-                {displayName
-                  .charAt(0)
-                  .toUpperCase()}
+                <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-blue-500/10 text-3xl font-bold text-blue-400 ring-2 ring-slate-800">
+
+                  {previewUrl ? (
+                    <img
+                      src={previewUrl}
+                      alt="Profile"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    displayName
+                      .charAt(0)
+                      .toUpperCase()
+                  )}
+
+                </div>
+
+                {/* CAMERA BUTTON */}
+
+                <label
+                  htmlFor="avatar-upload"
+                  className="absolute bottom-0 right-0 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-slate-800 bg-slate-900 text-slate-300 shadow-lg transition hover:bg-slate-800 hover:text-white"
+                  title="Change photo"
+                >
+                  <FiCamera size={16} />
+
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={
+                      handleFileChange
+                    }
+                    className="hidden"
+                  />
+                </label>
 
               </div>
 
@@ -111,12 +348,33 @@ function Profile({ user }) {
                 </h2>
 
                 <p className="mt-1 truncate text-sm text-slate-500">
-                  {user?.email || "No email"}
+                  {user?.email ||
+                    "No email"}
+                </p>
+
+                <p className="mt-2 text-xs text-slate-600">
+                  JPG, PNG or WebP • Max 2MB
                 </p>
 
               </div>
 
             </div>
+
+            {/* REMOVE PHOTO */}
+
+            {previewUrl && (
+              <button
+                type="button"
+                onClick={
+                  handleRemoveAvatar
+                }
+                className="mt-5 flex items-center gap-2 text-xs font-medium text-red-400 transition hover:text-red-300"
+              >
+                <FiTrash2 size={14} />
+
+                Remove photo
+              </button>
+            )}
 
           </div>
 
@@ -143,10 +401,11 @@ function Profile({ user }) {
                 id="fullName"
                 type="text"
                 value={fullName}
-                onChange={(e) => {
+                onChange={(event) => {
                   setFullName(
-                    e.target.value
+                    event.target.value
                   );
+
                   setMessage("");
                   setError("");
                 }}
@@ -172,7 +431,9 @@ function Profile({ user }) {
               <input
                 id="email"
                 type="email"
-                value={user?.email || ""}
+                value={
+                  user?.email || ""
+                }
                 disabled
                 className="w-full cursor-not-allowed rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-sm text-slate-500 outline-none"
               />
@@ -183,7 +444,7 @@ function Profile({ user }) {
 
             </div>
 
-            {/* SUCCESS MESSAGE */}
+            {/* SUCCESS */}
 
             {message && (
               <div className="rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3 text-sm text-green-400">
@@ -191,7 +452,7 @@ function Profile({ user }) {
               </div>
             )}
 
-            {/* ERROR MESSAGE */}
+            {/* ERROR */}
 
             {error && (
               <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-400">
@@ -199,22 +460,27 @@ function Profile({ user }) {
               </div>
             )}
 
-            {/* SAVE BUTTON */}
+            {/* SAVE */}
 
             <div className="flex justify-end">
 
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={saving}
+                disabled={
+                  saving ||
+                  uploading
+                }
                 className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
 
                 <FiSave size={17} />
 
-                {saving
-                  ? "Saving..."
-                  : "Save Changes"}
+                {uploading
+                  ? "Uploading..."
+                  : saving
+                    ? "Saving..."
+                    : "Save Changes"}
 
               </button>
 
