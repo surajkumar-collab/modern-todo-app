@@ -17,6 +17,7 @@ import {
   FiList,
   FiBarChart2,
   FiCalendar,
+  FiTarget,
 } from "react-icons/fi";
 
 function Dashboard({ user, onLogout }) {
@@ -50,6 +51,19 @@ function Dashboard({ user, onLogout }) {
   });
 
   const [statsLoading, setStatsLoading] =
+    useState(true);
+
+  // =========================================
+  // TODAY'S PROGRESS
+  // =========================================
+
+  const [todayStats, setTodayStats] =
+    useState({
+      total: 0,
+      completed: 0,
+    });
+
+  const [todayLoading, setTodayLoading] =
     useState(true);
 
   // =========================================
@@ -100,8 +114,30 @@ function Dashboard({ user, onLogout }) {
 
   const userName =
     user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
     user?.email?.split("@")[0] ||
     "User";
+
+  // =========================================
+  // TODAY STRING
+  // =========================================
+
+  const getTodayString = () => {
+    const today = new Date();
+
+    const year =
+      today.getFullYear();
+
+    const month = String(
+      today.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+      today.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
 
   // =========================================
   // FETCH DASHBOARD STATS
@@ -189,6 +225,90 @@ function Dashboard({ user, onLogout }) {
   }, [user?.id, refreshKey]);
 
   // =========================================
+  // FETCH TODAY'S PROGRESS
+  // =========================================
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchTodayProgress() {
+      if (!user?.id) {
+        if (mounted) {
+          setTodayStats({
+            total: 0,
+            completed: 0,
+          });
+
+          setTodayLoading(false);
+        }
+
+        return;
+      }
+
+      try {
+        setTodayLoading(true);
+
+        const today =
+          getTodayString();
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("tasks")
+          .select("completed, due_date")
+          .eq("user_id", user.id)
+          .eq("due_date", today);
+
+        if (error) {
+          throw error;
+        }
+
+        const todayTasks =
+          data || [];
+
+        const total =
+          todayTasks.length;
+
+        const completed =
+          todayTasks.filter(
+            (task) =>
+              task.completed === true
+          ).length;
+
+        if (mounted) {
+          setTodayStats({
+            total,
+            completed,
+          });
+        }
+      } catch (error) {
+        console.error(
+          "Today's progress error:",
+          error
+        );
+
+        if (mounted) {
+          setTodayStats({
+            total: 0,
+            completed: 0,
+          });
+        }
+      } finally {
+        if (mounted) {
+          setTodayLoading(false);
+        }
+      }
+    }
+
+    fetchTodayProgress();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, refreshKey]);
+
+  // =========================================
   // COMPLETION PERCENTAGE
   // =========================================
 
@@ -198,6 +318,19 @@ function Dashboard({ user, onLogout }) {
       : Math.round(
           (stats.completed /
             stats.total) *
+            100
+        );
+
+  // =========================================
+  // TODAY'S PERCENTAGE
+  // =========================================
+
+  const todayPercentage =
+    todayStats.total === 0
+      ? 0
+      : Math.round(
+          (todayStats.completed /
+            todayStats.total) *
             100
         );
 
@@ -297,8 +430,6 @@ function Dashboard({ user, onLogout }) {
 
         <section className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
 
-          {/* TOTAL */}
-
           <StatsCard
             title="Total Tasks"
             value={
@@ -313,8 +444,6 @@ function Dashboard({ user, onLogout }) {
             iconClassName="bg-blue-500/10 text-blue-400"
             hoverClassName="hover:border-blue-500/30"
           />
-
-          {/* ACTIVE */}
 
           <StatsCard
             title="Active Tasks"
@@ -331,8 +460,6 @@ function Dashboard({ user, onLogout }) {
             hoverClassName="hover:border-yellow-500/30"
           />
 
-          {/* COMPLETED */}
-
           <StatsCard
             title="Completed"
             value={
@@ -347,6 +474,72 @@ function Dashboard({ user, onLogout }) {
             iconClassName="bg-green-500/10 text-green-400"
             hoverClassName="hover:border-green-500/30"
           />
+
+        </section>
+
+        {/* ================================= */}
+        {/* TODAY'S PROGRESS */}
+        {/* ================================= */}
+
+        <section className="mt-4 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 p-5 sm:mt-5 sm:p-6">
+
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+
+            <div className="flex items-start gap-4">
+
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                <FiTarget size={23} />
+              </div>
+
+              <div>
+
+                <p className="text-sm font-medium text-blue-400">
+                  TODAY'S PROGRESS
+                </p>
+
+                <h3 className="mt-1 text-xl font-bold text-white">
+                  {todayStats.completed} /{" "}
+                  {todayStats.total} tasks completed
+                </h3>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  {todayStats.total === 0
+                    ? "No tasks scheduled for today."
+                    : todayPercentage === 100
+                    ? "Excellent! You completed everything for today. 🎉"
+                    : "Keep going — finish today's tasks."}
+                </p>
+
+              </div>
+
+            </div>
+
+            <div className="text-left sm:text-right">
+
+              <p className="text-3xl font-bold text-white">
+                {todayLoading
+                  ? "..."
+                  : `${todayPercentage}%`}
+              </p>
+
+              <p className="mt-1 text-xs text-slate-500">
+                today's completion
+              </p>
+
+            </div>
+
+          </div>
+
+          <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
+
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-700"
+              style={{
+                width: `${todayPercentage}%`,
+              }}
+            />
+
+          </div>
 
         </section>
 
@@ -412,8 +605,6 @@ function Dashboard({ user, onLogout }) {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
-            {/* ADD TASK */}
-
             <button
               type="button"
               onClick={() =>
@@ -436,8 +627,6 @@ function Dashboard({ user, onLogout }) {
 
             </button>
 
-            {/* VIEW TASKS */}
-
             <Link
               to="/tasks"
               className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
@@ -457,8 +646,6 @@ function Dashboard({ user, onLogout }) {
 
             </Link>
 
-            {/* ANALYTICS */}
-
             <Link
               to="/analytics"
               className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
@@ -477,8 +664,6 @@ function Dashboard({ user, onLogout }) {
               </p>
 
             </Link>
-
-            {/* CALENDAR */}
 
             <Link
               to="/calendar"
@@ -549,7 +734,9 @@ function Dashboard({ user, onLogout }) {
           onClose={() =>
             setShowTaskForm(false)
           }
-          onTaskCreated={handleTaskCreated}
+          onTaskCreated={
+            handleTaskCreated
+          }
         />
       )}
 
@@ -564,7 +751,9 @@ function Dashboard({ user, onLogout }) {
           onClose={() =>
             setEditingTask(null)
           }
-          onTaskUpdated={handleTaskUpdated}
+          onTaskUpdated={
+            handleTaskUpdated
+          }
         />
       )}
 
@@ -575,7 +764,9 @@ function Dashboard({ user, onLogout }) {
       {showCategoryManager && (
         <CategoryManager
           user={user}
-          onClose={closeCategoryManager}
+          onClose={
+            closeCategoryManager
+          }
           addToast={addToast}
         />
       )}
