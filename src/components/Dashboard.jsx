@@ -18,6 +18,7 @@ import {
   FiBarChart2,
   FiCalendar,
   FiTarget,
+  FiChevronRight,
 } from "react-icons/fi";
 
 function Dashboard({ user, onLogout }) {
@@ -54,7 +55,7 @@ function Dashboard({ user, onLogout }) {
     useState(true);
 
   // =========================================
-  // TODAY'S PROGRESS
+  // TODAY'S STATS
   // =========================================
 
   const [todayStats, setTodayStats] =
@@ -64,6 +65,16 @@ function Dashboard({ user, onLogout }) {
     });
 
   const [todayLoading, setTodayLoading] =
+    useState(true);
+
+  // =========================================
+  // TODAY'S TASKS
+  // =========================================
+
+  const [todayTasks, setTodayTasks] =
+    useState([]);
+
+  const [todayTasksLoading, setTodayTasksLoading] =
     useState(true);
 
   // =========================================
@@ -225,13 +236,13 @@ function Dashboard({ user, onLogout }) {
   }, [user?.id, refreshKey]);
 
   // =========================================
-  // FETCH TODAY'S PROGRESS
+  // FETCH TODAY'S DATA
   // =========================================
 
   useEffect(() => {
     let mounted = true;
 
-    async function fetchTodayProgress() {
+    async function fetchTodayData() {
       if (!user?.id) {
         if (mounted) {
           setTodayStats({
@@ -239,7 +250,9 @@ function Dashboard({ user, onLogout }) {
             completed: 0,
           });
 
+          setTodayTasks([]);
           setTodayLoading(false);
+          setTodayTasksLoading(false);
         }
 
         return;
@@ -247,6 +260,7 @@ function Dashboard({ user, onLogout }) {
 
       try {
         setTodayLoading(true);
+        setTodayTasksLoading(true);
 
         const today =
           getTodayString();
@@ -256,22 +270,29 @@ function Dashboard({ user, onLogout }) {
           error,
         } = await supabase
           .from("tasks")
-          .select("completed, due_date")
+          .select(
+            "id, title, completed, priority, category, due_date, created_at"
+          )
           .eq("user_id", user.id)
-          .eq("due_date", today);
+          .eq("due_date", today)
+          .order("completed", {
+            ascending: true,
+          })
+          .order("created_at", {
+            ascending: true,
+          });
 
         if (error) {
           throw error;
         }
 
-        const todayTasks =
-          data || [];
+        const tasks = data || [];
 
         const total =
-          todayTasks.length;
+          tasks.length;
 
         const completed =
-          todayTasks.filter(
+          tasks.filter(
             (task) =>
               task.completed === true
           ).length;
@@ -281,10 +302,12 @@ function Dashboard({ user, onLogout }) {
             total,
             completed,
           });
+
+          setTodayTasks(tasks);
         }
       } catch (error) {
         console.error(
-          "Today's progress error:",
+          "Today's data error:",
           error
         );
 
@@ -293,15 +316,18 @@ function Dashboard({ user, onLogout }) {
             total: 0,
             completed: 0,
           });
+
+          setTodayTasks([]);
         }
       } finally {
         if (mounted) {
           setTodayLoading(false);
+          setTodayTasksLoading(false);
         }
       }
     }
 
-    fetchTodayProgress();
+    fetchTodayData();
 
     return () => {
       mounted = false;
@@ -309,7 +335,7 @@ function Dashboard({ user, onLogout }) {
   }, [user?.id, refreshKey]);
 
   // =========================================
-  // COMPLETION PERCENTAGE
+  // OVERALL COMPLETION
   // =========================================
 
   const completionPercentage =
@@ -322,7 +348,7 @@ function Dashboard({ user, onLogout }) {
         );
 
   // =========================================
-  // TODAY'S PERCENTAGE
+  // TODAY'S COMPLETION
   // =========================================
 
   const todayPercentage =
@@ -333,18 +359,6 @@ function Dashboard({ user, onLogout }) {
             todayStats.total) *
             100
         );
-
-  // =========================================
-  // CLOSE CATEGORY MANAGER
-  // =========================================
-
-  const closeCategoryManager = () => {
-    setShowCategoryManager(false);
-
-    setRefreshKey(
-      (prev) => prev + 1
-    );
-  };
 
   // =========================================
   // TASK CREATED
@@ -381,6 +395,18 @@ function Dashboard({ user, onLogout }) {
   };
 
   // =========================================
+  // CATEGORY MANAGER CLOSE
+  // =========================================
+
+  const closeCategoryManager = () => {
+    setShowCategoryManager(false);
+
+    setRefreshKey(
+      (prev) => prev + 1
+    );
+  };
+
+  // =========================================
   // RENDER
   // =========================================
 
@@ -402,7 +428,7 @@ function Dashboard({ user, onLogout }) {
       {/* MAIN */}
       {/* ===================================== */}
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-8">
+      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
 
         {/* ================================= */}
         {/* WELCOME */}
@@ -503,11 +529,13 @@ function Dashboard({ user, onLogout }) {
                 </h3>
 
                 <p className="mt-1 text-sm text-slate-500">
+
                   {todayStats.total === 0
                     ? "No tasks scheduled for today."
                     : todayPercentage === 100
                     ? "Excellent! You completed everything for today. 🎉"
                     : "Keep going — finish today's tasks."}
+
                 </p>
 
               </div>
@@ -538,6 +566,188 @@ function Dashboard({ user, onLogout }) {
                 width: `${todayPercentage}%`,
               }}
             />
+
+          </div>
+
+        </section>
+
+        {/* ================================= */}
+        {/* TODAY'S TASKS */}
+        {/* ================================= */}
+
+        <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:mt-5 sm:p-6">
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+
+              <p className="text-sm font-medium text-blue-400">
+                TODAY
+              </p>
+
+              <h3 className="mt-1 text-xl font-bold text-white">
+                Today's Tasks
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Tasks scheduled for today.
+              </p>
+
+            </div>
+
+            <Link
+              to="/tasks"
+              className="inline-flex items-center gap-1 text-sm font-medium text-blue-400 transition hover:text-blue-300"
+            >
+              View all
+              <FiChevronRight size={16} />
+            </Link>
+
+          </div>
+
+          <div className="mt-5">
+
+            {/* LOADING */}
+
+            {todayTasksLoading ? (
+
+              <div className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-5 text-sm text-slate-500">
+                Loading today's tasks...
+              </div>
+
+            ) : todayTasks.length === 0 ? (
+
+              /* EMPTY STATE */
+
+              <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/50 px-5 py-8 text-center">
+
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-green-500/10 text-green-400">
+                  <FiCheckCircle size={21} />
+                </div>
+
+                <h4 className="mt-3 font-semibold text-white">
+                  No tasks for today
+                </h4>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  You're all clear. Add a task if you need one.
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowTaskForm(true)
+                  }
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+                >
+                  <FiPlus size={16} />
+                  Add Task
+                </button>
+
+              </div>
+
+            ) : (
+
+              /* TASK LIST */
+
+              <div className="space-y-2">
+
+                {todayTasks.map(
+                  (task) => (
+                    <div
+                      key={task.id}
+                      className={`flex items-center gap-3 rounded-xl border p-3 transition ${
+                        task.completed
+                          ? "border-green-500/10 bg-green-500/5"
+                          : "border-slate-800 bg-slate-950/50 hover:border-slate-700"
+                      }`}
+                    >
+
+                      {/* STATUS ICON */}
+
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                          task.completed
+                            ? "bg-green-500/10 text-green-400"
+                            : "bg-blue-500/10 text-blue-400"
+                        }`}
+                      >
+
+                        {task.completed ? (
+                          <FiCheckCircle
+                            size={18}
+                          />
+                        ) : (
+                          <FiCheckSquare
+                            size={18}
+                          />
+                        )}
+
+                      </div>
+
+                      {/* TASK INFO */}
+
+                      <div className="min-w-0 flex-1">
+
+                        <p
+                          className={`truncate text-sm font-semibold ${
+                            task.completed
+                              ? "text-slate-500 line-through"
+                              : "text-slate-200"
+                          }`}
+                        >
+                          {task.title}
+                        </p>
+
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+
+                          {task.category && (
+                            <span className="text-xs text-slate-600">
+                              {task.category}
+                            </span>
+                          )}
+
+                          {task.priority && (
+                            <span
+                              className={`text-xs font-medium ${
+                                task.priority ===
+                                "high"
+                                  ? "text-red-400"
+                                  : task.priority ===
+                                    "medium"
+                                  ? "text-yellow-400"
+                                  : "text-green-400"
+                              }`}
+                            >
+                              {task.priority}
+                            </span>
+                          )}
+
+                        </div>
+
+                      </div>
+
+                      {/* STATUS */}
+
+                      <span
+                        className={`hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${
+                          task.completed
+                            ? "bg-green-500/10 text-green-400"
+                            : "bg-blue-500/10 text-blue-400"
+                        }`}
+                      >
+                        {task.completed
+                          ? "Completed"
+                          : "Active"}
+                      </span>
+
+                    </div>
+                  )
+                )}
+
+              </div>
+
+            )}
 
           </div>
 
@@ -605,6 +815,8 @@ function Dashboard({ user, onLogout }) {
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
+            {/* ADD TASK */}
+
             <button
               type="button"
               onClick={() =>
@@ -627,6 +839,8 @@ function Dashboard({ user, onLogout }) {
 
             </button>
 
+            {/* VIEW TASKS */}
+
             <Link
               to="/tasks"
               className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
@@ -646,6 +860,8 @@ function Dashboard({ user, onLogout }) {
 
             </Link>
 
+            {/* ANALYTICS */}
+
             <Link
               to="/analytics"
               className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
@@ -664,6 +880,8 @@ function Dashboard({ user, onLogout }) {
               </p>
 
             </Link>
+
+            {/* CALENDAR */}
 
             <Link
               to="/calendar"
@@ -689,7 +907,7 @@ function Dashboard({ user, onLogout }) {
         </section>
 
         {/* ================================= */}
-        {/* CATEGORY MANAGEMENT */}
+        {/* CATEGORIES */}
         {/* ================================= */}
 
         <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:mt-10 sm:p-6">
@@ -772,7 +990,7 @@ function Dashboard({ user, onLogout }) {
       )}
 
       {/* ===================================== */}
-      {/* TOAST */}
+      {/* TOASTS */}
       {/* ===================================== */}
 
       <ToastContainer
