@@ -26,24 +26,16 @@ function Dashboard({ user, onLogout }) {
   // STATES
   // =========================================
 
-  const [showTaskForm, setShowTaskForm] =
-    useState(false);
+  const [showTaskForm, setShowTaskForm] = useState(false);
 
   const [showCategoryManager, setShowCategoryManager] =
     useState(false);
 
-  const [refreshKey, setRefreshKey] =
-    useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const [editingTask, setEditingTask] =
-    useState(null);
+  const [editingTask, setEditingTask] = useState(null);
 
-  const [searchQuery, setSearchQuery] =
-    useState("");
-
-  // =========================================
-  // DASHBOARD STATS
-  // =========================================
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [stats, setStats] = useState({
     total: 0,
@@ -51,45 +43,33 @@ function Dashboard({ user, onLogout }) {
     completed: 0,
   });
 
-  const [statsLoading, setStatsLoading] =
-    useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
 
-  // =========================================
-  // TODAY'S STATS
-  // =========================================
+  const [todayStats, setTodayStats] = useState({
+    total: 0,
+    completed: 0,
+  });
 
-  const [todayStats, setTodayStats] =
-    useState({
-      total: 0,
-      completed: 0,
-    });
+  const [todayLoading, setTodayLoading] = useState(true);
 
-  const [todayLoading, setTodayLoading] =
-    useState(true);
-
-  // =========================================
-  // TODAY'S TASKS
-  // =========================================
-
-  const [todayTasks, setTodayTasks] =
-    useState([]);
+  const [todayTasks, setTodayTasks] = useState([]);
 
   const [todayTasksLoading, setTodayTasksLoading] =
     useState(true);
 
+  const [upcomingTasks, setUpcomingTasks] = useState([]);
+
+  const [upcomingTasksLoading, setUpcomingTasksLoading] =
+    useState(true);
+
+  const [toasts, setToasts] = useState([]);
+
   // =========================================
-  // TOASTS
+  // TOAST
   // =========================================
 
-  const [toasts, setToasts] =
-    useState([]);
-
-  const addToast = (
-    message,
-    type = "success"
-  ) => {
-    const id =
-      Date.now() + Math.random();
+  const addToast = (message, type = "success") => {
+    const id = Date.now() + Math.random();
 
     setToasts((prev) => [
       ...prev,
@@ -102,20 +82,14 @@ function Dashboard({ user, onLogout }) {
 
     setTimeout(() => {
       setToasts((prev) =>
-        prev.filter(
-          (toast) =>
-            toast.id !== id
-        )
+        prev.filter((toast) => toast.id !== id)
       );
     }, 3000);
   };
 
   const removeToast = (id) => {
     setToasts((prev) =>
-      prev.filter(
-        (toast) =>
-          toast.id !== id
-      )
+      prev.filter((toast) => toast.id !== id)
     );
   };
 
@@ -130,14 +104,13 @@ function Dashboard({ user, onLogout }) {
     "User";
 
   // =========================================
-  // TODAY STRING
+  // TODAY
   // =========================================
 
   const getTodayString = () => {
     const today = new Date();
 
-    const year =
-      today.getFullYear();
+    const year = today.getFullYear();
 
     const month = String(
       today.getMonth() + 1
@@ -151,7 +124,7 @@ function Dashboard({ user, onLogout }) {
   };
 
   // =========================================
-  // FETCH DASHBOARD STATS
+  // DASHBOARD STATS
   // =========================================
 
   useEffect(() => {
@@ -159,26 +132,13 @@ function Dashboard({ user, onLogout }) {
 
     async function fetchDashboardStats() {
       if (!user?.id) {
-        if (mounted) {
-          setStats({
-            total: 0,
-            active: 0,
-            completed: 0,
-          });
-
-          setStatsLoading(false);
-        }
-
         return;
       }
 
       try {
         setStatsLoading(true);
 
-        const {
-          data,
-          error,
-        } = await supabase
+        const { data, error } = await supabase
           .from("tasks")
           .select("completed")
           .eq("user_id", user.id);
@@ -187,19 +147,15 @@ function Dashboard({ user, onLogout }) {
           throw error;
         }
 
-        const taskData = data || [];
+        const tasks = data || [];
 
-        const total =
-          taskData.length;
+        const total = tasks.length;
 
-        const completed =
-          taskData.filter(
-            (task) =>
-              task.completed === true
-          ).length;
+        const completed = tasks.filter(
+          (task) => task.completed === true
+        ).length;
 
-        const active =
-          total - completed;
+        const active = total - completed;
 
         if (mounted) {
           setStats({
@@ -213,14 +169,6 @@ function Dashboard({ user, onLogout }) {
           "Dashboard stats error:",
           error
         );
-
-        if (mounted) {
-          setStats({
-            total: 0,
-            active: 0,
-            completed: 0,
-          });
-        }
       } finally {
         if (mounted) {
           setStatsLoading(false);
@@ -236,7 +184,7 @@ function Dashboard({ user, onLogout }) {
   }, [user?.id, refreshKey]);
 
   // =========================================
-  // FETCH TODAY'S DATA
+  // TODAY'S TASKS
   // =========================================
 
   useEffect(() => {
@@ -244,17 +192,6 @@ function Dashboard({ user, onLogout }) {
 
     async function fetchTodayData() {
       if (!user?.id) {
-        if (mounted) {
-          setTodayStats({
-            total: 0,
-            completed: 0,
-          });
-
-          setTodayTasks([]);
-          setTodayLoading(false);
-          setTodayTasksLoading(false);
-        }
-
         return;
       }
 
@@ -262,13 +199,9 @@ function Dashboard({ user, onLogout }) {
         setTodayLoading(true);
         setTodayTasksLoading(true);
 
-        const today =
-          getTodayString();
+        const today = getTodayString();
 
-        const {
-          data,
-          error,
-        } = await supabase
+        const { data, error } = await supabase
           .from("tasks")
           .select(
             "id, title, completed, priority, category, due_date, created_at"
@@ -288,14 +221,11 @@ function Dashboard({ user, onLogout }) {
 
         const tasks = data || [];
 
-        const total =
-          tasks.length;
+        const total = tasks.length;
 
-        const completed =
-          tasks.filter(
-            (task) =>
-              task.completed === true
-          ).length;
+        const completed = tasks.filter(
+          (task) => task.completed === true
+        ).length;
 
         if (mounted) {
           setTodayStats({
@@ -307,7 +237,7 @@ function Dashboard({ user, onLogout }) {
         }
       } catch (error) {
         console.error(
-          "Today's data error:",
+          "Today's tasks error:",
           error
         );
 
@@ -335,20 +265,78 @@ function Dashboard({ user, onLogout }) {
   }, [user?.id, refreshKey]);
 
   // =========================================
-  // OVERALL COMPLETION
+  // UPCOMING TASKS
+  // =========================================
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchUpcomingTasks() {
+      if (!user?.id) {
+        return;
+      }
+
+      try {
+        setUpcomingTasksLoading(true);
+
+        const today = getTodayString();
+
+        const { data, error } = await supabase
+          .from("tasks")
+          .select(
+            "id, title, completed, priority, category, due_date"
+          )
+          .eq("user_id", user.id)
+          .gt("due_date", today)
+          .eq("completed", false)
+          .order("due_date", {
+            ascending: true,
+          })
+          .limit(5);
+
+        if (error) {
+          throw error;
+        }
+
+        if (mounted) {
+          setUpcomingTasks(data || []);
+        }
+      } catch (error) {
+        console.error(
+          "Upcoming tasks error:",
+          error
+        );
+
+        if (mounted) {
+          setUpcomingTasks([]);
+        }
+      } finally {
+        if (mounted) {
+          setUpcomingTasksLoading(false);
+        }
+      }
+    }
+
+    fetchUpcomingTasks();
+
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, refreshKey]);
+
+  // =========================================
+  // OVERALL PROGRESS
   // =========================================
 
   const completionPercentage =
     stats.total === 0
       ? 0
       : Math.round(
-          (stats.completed /
-            stats.total) *
-            100
+          (stats.completed / stats.total) * 100
         );
 
   // =========================================
-  // TODAY'S COMPLETION
+  // TODAY PROGRESS
   // =========================================
 
   const todayPercentage =
@@ -361,15 +349,13 @@ function Dashboard({ user, onLogout }) {
         );
 
   // =========================================
-  // TASK CREATED
+  // CREATE TASK
   // =========================================
 
   const handleTaskCreated = () => {
     setShowTaskForm(false);
 
-    setRefreshKey(
-      (prev) => prev + 1
-    );
+    setRefreshKey((prev) => prev + 1);
 
     addToast(
       "Task created successfully",
@@ -378,15 +364,13 @@ function Dashboard({ user, onLogout }) {
   };
 
   // =========================================
-  // TASK UPDATED
+  // UPDATE TASK
   // =========================================
 
   const handleTaskUpdated = () => {
     setEditingTask(null);
 
-    setRefreshKey(
-      (prev) => prev + 1
-    );
+    setRefreshKey((prev) => prev + 1);
 
     addToast(
       "Task updated successfully",
@@ -395,15 +379,54 @@ function Dashboard({ user, onLogout }) {
   };
 
   // =========================================
-  // CATEGORY MANAGER CLOSE
+  // CATEGORY MANAGER
   // =========================================
 
   const closeCategoryManager = () => {
     setShowCategoryManager(false);
 
-    setRefreshKey(
-      (prev) => prev + 1
+    setRefreshKey((prev) => prev + 1);
+  };
+
+  // =========================================
+  // FORMAT DATE
+  // =========================================
+
+  const formatUpcomingDate = (dateString) => {
+    if (!dateString) {
+      return {
+        day: "--",
+        month: "",
+        weekday: "",
+      };
+    }
+
+    const date = new Date(
+      `${dateString}T00:00:00`
     );
+
+    return {
+      day: date.toLocaleDateString(
+        "en-IN",
+        {
+          day: "2-digit",
+        }
+      ),
+
+      month: date.toLocaleDateString(
+        "en-IN",
+        {
+          month: "short",
+        }
+      ),
+
+      weekday: date.toLocaleDateString(
+        "en-IN",
+        {
+          weekday: "short",
+        }
+      ),
+    };
   };
 
   // =========================================
@@ -507,7 +530,7 @@ function Dashboard({ user, onLogout }) {
         {/* TODAY'S PROGRESS */}
         {/* ================================= */}
 
-        <section className="mt-4 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 p-5 sm:mt-5 sm:p-6">
+        <section className="mt-5 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 p-5 sm:p-6">
 
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
@@ -575,7 +598,7 @@ function Dashboard({ user, onLogout }) {
         {/* TODAY'S TASKS */}
         {/* ================================= */}
 
-        <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:mt-5 sm:p-6">
+        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
@@ -607,8 +630,6 @@ function Dashboard({ user, onLogout }) {
 
           <div className="mt-5">
 
-            {/* LOADING */}
-
             {todayTasksLoading ? (
 
               <div className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-5 text-sm text-slate-500">
@@ -616,8 +637,6 @@ function Dashboard({ user, onLogout }) {
               </div>
 
             ) : todayTasks.length === 0 ? (
-
-              /* EMPTY STATE */
 
               <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/50 px-5 py-8 text-center">
 
@@ -648,54 +667,188 @@ function Dashboard({ user, onLogout }) {
 
             ) : (
 
-              /* TASK LIST */
-
               <div className="space-y-2">
 
-                {todayTasks.map(
-                  (task) => (
+                {todayTasks.map((task) => (
+
+                  <Link
+                    key={task.id}
+                    to={`/tasks?task=${task.id}`}
+                    className={`group flex items-center gap-3 rounded-xl border p-3 transition ${
+                      task.completed
+                        ? "border-green-500/10 bg-green-500/5"
+                        : "border-slate-800 bg-slate-950/50 hover:border-blue-500/40 hover:bg-blue-500/5"
+                    }`}
+                  >
+
                     <div
-                      key={task.id}
-                      className={`flex items-center gap-3 rounded-xl border p-3 transition ${
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
                         task.completed
-                          ? "border-green-500/10 bg-green-500/5"
-                          : "border-slate-800 bg-slate-950/50 hover:border-slate-700"
+                          ? "bg-green-500/10 text-green-400"
+                          : "bg-blue-500/10 text-blue-400"
                       }`}
                     >
+                      {task.completed ? (
+                        <FiCheckCircle size={18} />
+                      ) : (
+                        <FiCheckSquare size={18} />
+                      )}
+                    </div>
 
-                      {/* STATUS ICON */}
+                    <div className="min-w-0 flex-1">
 
-                      <div
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                      <p
+                        className={`truncate text-sm font-semibold transition ${
                           task.completed
-                            ? "bg-green-500/10 text-green-400"
-                            : "bg-blue-500/10 text-blue-400"
+                            ? "text-slate-500 line-through"
+                            : "text-slate-200 group-hover:text-blue-300"
                         }`}
                       >
+                        {task.title}
+                      </p>
 
-                        {task.completed ? (
-                          <FiCheckCircle
-                            size={18}
-                          />
-                        ) : (
-                          <FiCheckSquare
-                            size={18}
-                          />
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+
+                        {task.category && (
+                          <span className="text-xs text-slate-600">
+                            {task.category}
+                          </span>
+                        )}
+
+                        {task.priority && (
+                          <span
+                            className={`text-xs font-medium ${
+                              task.priority === "high"
+                                ? "text-red-400"
+                                : task.priority === "medium"
+                                ? "text-yellow-400"
+                                : "text-green-400"
+                            }`}
+                          >
+                            {task.priority}
+                          </span>
                         )}
 
                       </div>
 
-                      {/* TASK INFO */}
+                    </div>
+
+                    <FiChevronRight
+                      size={18}
+                      className="shrink-0 text-slate-600 transition group-hover:translate-x-1 group-hover:text-blue-400"
+                    />
+
+                  </Link>
+
+                ))}
+
+              </div>
+
+            )}
+
+          </div>
+
+        </section>
+
+        {/* ================================= */}
+        {/* UPCOMING TASKS */}
+        {/* ================================= */}
+
+        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+            <div>
+
+              <p className="text-sm font-medium text-purple-400">
+                UPCOMING
+              </p>
+
+              <h3 className="mt-1 text-xl font-bold text-white">
+                Upcoming Tasks
+              </h3>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Stay ahead of what's coming next.
+              </p>
+
+            </div>
+
+            <Link
+              to="/tasks"
+              className="inline-flex items-center gap-1 text-sm font-medium text-purple-400 transition hover:text-purple-300"
+            >
+              View all
+              <FiChevronRight size={16} />
+            </Link>
+
+          </div>
+
+          <div className="mt-5">
+
+            {upcomingTasksLoading ? (
+
+              <div className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-5 text-sm text-slate-500">
+                Loading upcoming tasks...
+              </div>
+
+            ) : upcomingTasks.length === 0 ? (
+
+              <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/50 px-5 py-8 text-center">
+
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
+                  <FiCalendar size={21} />
+                </div>
+
+                <h4 className="mt-3 font-semibold text-white">
+                  No upcoming tasks
+                </h4>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  You're all caught up for now.
+                </p>
+
+              </div>
+
+            ) : (
+
+              <div className="space-y-2">
+
+                {upcomingTasks.map((task) => {
+
+                  const formattedDate =
+                    formatUpcomingDate(
+                      task.due_date
+                    );
+
+                  return (
+
+                    <Link
+                      key={task.id}
+                      to={`/tasks?task=${task.id}`}
+                      className="group flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 transition hover:border-purple-500/40 hover:bg-purple-500/5"
+                    >
+
+                      {/* DATE */}
+
+                      <div className="flex h-12 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-purple-500/10">
+
+                        <span className="text-[10px] font-medium uppercase text-purple-400">
+                          {formattedDate.weekday}
+                        </span>
+
+                        <span className="text-sm font-bold text-white">
+                          {formattedDate.day}{" "}
+                          {formattedDate.month}
+                        </span>
+
+                      </div>
+
+                      {/* TASK */}
 
                       <div className="min-w-0 flex-1">
 
-                        <p
-                          className={`truncate text-sm font-semibold ${
-                            task.completed
-                              ? "text-slate-500 line-through"
-                              : "text-slate-200"
-                          }`}
-                        >
+                        <p className="truncate text-sm font-semibold text-slate-200 transition group-hover:text-purple-300">
                           {task.title}
                         </p>
 
@@ -710,11 +863,9 @@ function Dashboard({ user, onLogout }) {
                           {task.priority && (
                             <span
                               className={`text-xs font-medium ${
-                                task.priority ===
-                                "high"
+                                task.priority === "high"
                                   ? "text-red-400"
-                                  : task.priority ===
-                                    "medium"
+                                  : task.priority === "medium"
                                   ? "text-yellow-400"
                                   : "text-green-400"
                               }`}
@@ -727,23 +878,17 @@ function Dashboard({ user, onLogout }) {
 
                       </div>
 
-                      {/* STATUS */}
+                      {/* ARROW */}
 
-                      <span
-                        className={`hidden rounded-full px-2.5 py-1 text-xs font-medium sm:inline-flex ${
-                          task.completed
-                            ? "bg-green-500/10 text-green-400"
-                            : "bg-blue-500/10 text-blue-400"
-                        }`}
-                      >
-                        {task.completed
-                          ? "Completed"
-                          : "Active"}
-                      </span>
+                      <FiChevronRight
+                        size={18}
+                        className="shrink-0 text-slate-600 transition group-hover:translate-x-1 group-hover:text-purple-400"
+                      />
 
-                    </div>
-                  )
-                )}
+                    </Link>
+
+                  );
+                })}
 
               </div>
 
@@ -757,7 +902,7 @@ function Dashboard({ user, onLogout }) {
         {/* OVERALL PROGRESS */}
         {/* ================================= */}
 
-        <section className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:mt-5 sm:p-6">
+        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-6">
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
@@ -782,7 +927,7 @@ function Dashboard({ user, onLogout }) {
 
           </div>
 
-          <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-800 sm:mt-5">
+          <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
 
             <div
               className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-500"
@@ -943,7 +1088,7 @@ function Dashboard({ user, onLogout }) {
       </main>
 
       {/* ===================================== */}
-      {/* ADD TASK MODAL */}
+      {/* ADD TASK */}
       {/* ===================================== */}
 
       {showTaskForm && (
@@ -959,7 +1104,7 @@ function Dashboard({ user, onLogout }) {
       )}
 
       {/* ===================================== */}
-      {/* EDIT TASK MODAL */}
+      {/* EDIT TASK */}
       {/* ===================================== */}
 
       {editingTask && (
@@ -990,7 +1135,7 @@ function Dashboard({ user, onLogout }) {
       )}
 
       {/* ===================================== */}
-      {/* TOASTS */}
+      {/* TOAST */}
       {/* ===================================== */}
 
       <ToastContainer
