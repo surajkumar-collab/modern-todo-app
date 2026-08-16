@@ -62,13 +62,20 @@ function AppLayout({ user, onLogout }) {
         .maybeSingle();
 
       if (error) {
-        console.error("AppLayout profile fetch error:", error);
+        console.error(
+          "AppLayout profile fetch error:",
+          error
+        );
+
         return;
       }
 
       setProfile(data || null);
     } catch (error) {
-      console.error("AppLayout profile error:", error);
+      console.error(
+        "AppLayout profile error:",
+        error
+      );
     }
   }
 
@@ -82,15 +89,6 @@ function AppLayout({ user, onLogout }) {
 
   // =========================================
   // PROFILE UPDATE LISTENER
-  // =========================================
-  //
-  // Profile.jsx will dispatch:
-  //
-  // window.dispatchEvent(
-  //   new Event("taskflow-profile-updated")
-  // );
-  //
-  // after saving/updating the profile.
   // =========================================
 
   useEffect(() => {
@@ -133,7 +131,9 @@ function AppLayout({ user, onLogout }) {
 
   const avatarUrl = profile?.avatar_url
     ? `${profile.avatar_url}${
-        profile.avatar_url.includes("?") ? "&" : "?"
+        profile.avatar_url.includes("?")
+          ? "&"
+          : "?"
       }t=${Date.now()}`
     : null;
 
@@ -161,6 +161,8 @@ function AppLayout({ user, onLogout }) {
         <aside
           className="
             group
+            relative
+            z-50
             hidden
             w-20
             shrink-0
@@ -421,7 +423,8 @@ function AppLayout({ user, onLogout }) {
                       object-cover
                     "
                     onError={(event) => {
-                      event.currentTarget.style.display = "none";
+                      event.currentTarget.style.display =
+                        "none";
                     }}
                   />
                 ) : (
@@ -508,7 +511,7 @@ function AppLayout({ user, onLogout }) {
         {/* MAIN AREA */}
         {/* ========================================= */}
 
-        <main className="min-w-0 flex-1">
+        <main className="relative z-0 min-w-0 flex-1">
 
           {/* ========================================= */}
           {/* MOBILE HEADER */}

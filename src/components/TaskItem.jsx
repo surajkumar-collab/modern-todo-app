@@ -11,6 +11,7 @@ function TaskItem({
   onToggle,
   onEdit,
   onDelete,
+  onOpenDetails,
   formatDueDate,
   getDueDateStatus,
 }) {
@@ -46,6 +47,16 @@ function TaskItem({
 
   const recurrenceLabel =
     getRecurrenceLabel();
+
+  // =========================
+  // OPEN DETAILS
+  // =========================
+
+  const handleOpenDetails = () => {
+    if (onOpenDetails) {
+      onOpenDetails(task);
+    }
+  };
 
   return (
     <div
@@ -84,8 +95,12 @@ function TaskItem({
         {/* CONTENT */}
         {/* ========================= */}
 
-        <div className="min-w-0 flex-1">
-
+        <button
+          type="button"
+          onClick={handleOpenDetails}
+          className="min-w-0 flex-1 cursor-pointer text-left"
+          title="View task details"
+        >
           {/* TITLE + BADGES */}
 
           <div className="flex flex-wrap items-center gap-2">
@@ -194,35 +209,49 @@ function TaskItem({
               </p>
             )}
 
+        </button>
+
+        {/* ========================= */}
+        {/* ACTIONS */}
+        {/* ========================= */}
+
+        <div className="flex shrink-0 items-start gap-1">
+
+          {/* EDIT */}
+
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+
+              if (onEdit) {
+                onEdit(task);
+              }
+            }}
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-blue-500/10 hover:text-blue-400"
+            title="Edit task"
+          >
+            <FiEdit3 size={18} />
+          </button>
+
+          {/* DELETE */}
+
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+
+              if (onDelete) {
+                onDelete(task);
+              }
+            }}
+            className="rounded-lg p-2 text-slate-600 opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
+            title="Delete task"
+          >
+            <FiTrash2 size={18} />
+          </button>
+
         </div>
-
-        {/* ========================= */}
-        {/* EDIT */}
-        {/* ========================= */}
-
-        <button
-          type="button"
-          onClick={() => onEdit(task)}
-          className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-blue-500/10 hover:text-blue-400"
-          title="Edit task"
-        >
-          <FiEdit3 size={18} />
-        </button>
-
-        {/* ========================= */}
-        {/* DELETE */}
-        {/* ========================= */}
-
-        <button
-          type="button"
-          onClick={() =>
-            onDelete(task.id)
-          }
-          className="shrink-0 rounded-lg p-2 text-slate-600 opacity-0 transition hover:bg-red-500/10 hover:text-red-400 group-hover:opacity-100"
-          title="Delete task"
-        >
-          <FiTrash2 size={18} />
-        </button>
 
       </div>
     </div>

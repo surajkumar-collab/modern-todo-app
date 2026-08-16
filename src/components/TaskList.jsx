@@ -5,6 +5,7 @@ import TaskItem from "./TaskItem";
 import FilterBar from "./FilterBar";
 import EmptyState from "./EmptyState";
 import ConfirmModal from "./ConfirmModal";
+import TaskDetails from "./TaskDetails";
 
 function TaskList({
   user,
@@ -45,6 +46,13 @@ function TaskList({
     useState(null);
 
   const [togglingId, setTogglingId] =
+    useState(null);
+
+  // =========================
+  // SELECTED TASK
+  // =========================
+
+  const [selectedTask, setSelectedTask] =
     useState(null);
 
   // =========================
@@ -100,7 +108,10 @@ function TaskList({
         });
       }
     } catch (error) {
-      console.error("Fetch tasks error:", error);
+      console.error(
+        "Fetch tasks error:",
+        error
+      );
 
       addToast?.(
         "Failed to load tasks",
@@ -162,6 +173,52 @@ function TaskList({
     fetchTasks();
     fetchCategories();
   }, [user?.id, refreshKey]);
+
+  // =========================
+  // OPEN TASK FROM URL
+  // =========================
+
+  useEffect(() => {
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
+    const taskId = params.get("task");
+
+    if (!taskId || tasks.length === 0) {
+      return;
+    }
+
+    const task = tasks.find(
+      (item) => item.id === taskId
+    );
+
+    if (task) {
+      setSelectedTask(task);
+    }
+  }, [tasks]);
+
+  // =========================
+  // CLOSE TASK DETAILS
+  // =========================
+
+  const closeTaskDetails = () => {
+    setSelectedTask(null);
+
+    const url = new URL(
+      window.location.href
+    );
+
+    url.searchParams.delete("task");
+
+    window.history.replaceState(
+      {},
+      "",
+      url.pathname +
+        url.search +
+        url.hash
+    );
+  };
 
   // =========================
   // GET NEXT RECURRENCE DATE
@@ -359,7 +416,6 @@ function TaskList({
       return;
     }
 
-    // Prevent double click
     if (togglingId === task.id) {
       return;
     }
@@ -404,6 +460,11 @@ function TaskList({
             : item
         )
       );
+
+      // Keep details modal updated
+      if (selectedTask?.id === task.id) {
+        setSelectedTask(data);
+      }
 
       // =========================
       // TASK COMPLETED
@@ -454,29 +515,17 @@ function TaskList({
             );
           }
         } else {
-          // =========================
-          // NORMAL TASK
-          // =========================
-
           addToast?.(
             "Task completed 🎉",
             "success"
           );
         }
       } else {
-        // =========================
-        // MARK ACTIVE
-        // =========================
-
         addToast?.(
           "Task marked as active",
           "info"
         );
       }
-
-      // =========================
-      // REFRESH DATA + STATS
-      // =========================
 
       await fetchTasks();
     } catch (error) {
@@ -535,13 +584,20 @@ function TaskList({
         throw error;
       }
 
-      // Remove immediately from UI
       setTasks((prevTasks) =>
         prevTasks.filter(
           (task) =>
             task.id !== taskToDelete.id
         )
       );
+
+      // Close details if deleted task is open
+      if (
+        selectedTask?.id ===
+        taskToDelete.id
+      ) {
+        closeTaskDetails();
+      }
 
       const deletedTitle =
         taskToDelete.title;
@@ -553,7 +609,6 @@ function TaskList({
         "success"
       );
 
-      // Refresh stats
       await fetchTasks();
     } catch (error) {
       console.error(
@@ -686,7 +741,8 @@ function TaskList({
         !task.completed &&
         new Date(
           `${task.due_date}T00:00:00`
-        ).getTime() === today.getTime();
+        ).getTime() ===
+          today.getTime();
 
       const matchesOverdue =
         statusFilter === "overdue" &&
@@ -704,6 +760,7 @@ function TaskList({
           task.completed) ||
         matchesToday ||
         matchesOverdue;
+
       const matchesCategory =
         categoryFilter === "all" ||
         task.category === categoryFilter;
@@ -720,10 +777,6 @@ function TaskList({
       );
     })
     .sort((a, b) => {
-      // =========================
-      // NEWEST
-      // =========================
-
       if (sortBy === "newest") {
         return (
           new Date(b.created_at) -
@@ -731,20 +784,12 @@ function TaskList({
         );
       }
 
-      // =========================
-      // OLDEST
-      // =========================
-
       if (sortBy === "oldest") {
         return (
           new Date(a.created_at) -
           new Date(b.created_at)
         );
       }
-
-      // =========================
-      // PRIORITY
-      // =========================
 
       if (sortBy === "priority") {
         const priorityOrder = {
@@ -754,14 +799,12 @@ function TaskList({
         };
 
         return (
-          (priorityOrder[a.priority] || 99) -
-          (priorityOrder[b.priority] || 99)
+          (priorityOrder[a.priority] ||
+            99) -
+          (priorityOrder[b.priority] ||
+            99)
         );
       }
-
-      // =========================
-      // DUE DATE
-      // =========================
 
       if (sortBy === "dueDate") {
         if (!a.due_date) {
@@ -785,16 +828,20 @@ function TaskList({
   // LOADING
   // =========================
 
-   if (loading) {
+  if (loading) {
     return (
       <div className="w-full">
 
         {/* FILTER SKELETON */}
 
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+
           <div className="h-10 w-full animate-pulse rounded-xl bg-slate-900 sm:w-40" />
+
           <div className="h-10 w-full animate-pulse rounded-xl bg-slate-900 sm:w-40" />
+
           <div className="h-10 w-full animate-pulse rounded-xl bg-slate-900 sm:w-40" />
+
         </div>
 
         {/* TASK SKELETONS */}
@@ -809,21 +856,13 @@ function TaskList({
 
               <div className="flex items-start gap-4">
 
-                {/* CHECKBOX */}
-
                 <div className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-slate-800" />
 
                 <div className="flex-1">
 
-                  {/* TITLE */}
-
                   <div className="h-4 w-2/3 animate-pulse rounded bg-slate-800" />
 
-                  {/* DESCRIPTION */}
-
                   <div className="mt-3 h-3 w-1/2 animate-pulse rounded bg-slate-800" />
-
-                  {/* META */}
 
                   <div className="mt-4 flex gap-2">
 
@@ -845,6 +884,7 @@ function TaskList({
       </div>
     );
   }
+
   // =========================
   // UI
   // =========================
@@ -899,6 +939,24 @@ function TaskList({
           ))}
 
         </div>
+      )}
+
+      {/* ========================= */}
+      {/* TASK DETAILS */}
+      {/* ========================= */}
+
+      {selectedTask && (
+        <TaskDetails
+          task={selectedTask}
+          onClose={closeTaskDetails}
+          onEdit={(task) => {
+            closeTaskDetails();
+
+            if (onEditTask) {
+              onEditTask(task);
+            }
+          }}
+        />
       )}
 
       {/* ========================= */}

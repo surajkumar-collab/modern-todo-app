@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 
 import TaskForm from "./TaskForm";
+import TaskDetails from "./TaskDetails";
 import CategoryManager from "./CategoryManager";
 import Navbar from "./Navbar";
 import StatsCard from "./StatsCard";
@@ -33,7 +34,11 @@ function Dashboard({ user, onLogout }) {
 
   const [refreshKey, setRefreshKey] = useState(0);
 
+  // EDIT TASK MODAL
   const [editingTask, setEditingTask] = useState(null);
+
+  // TASK DETAILS MODAL
+  const [viewingTask, setViewingTask] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -204,7 +209,7 @@ function Dashboard({ user, onLogout }) {
         const { data, error } = await supabase
           .from("tasks")
           .select(
-            "id, title, completed, priority, category, due_date, created_at"
+            "id, title, description, completed, priority, category, due_date, recurrence_type, recurrence_end_date, created_at, updated_at"
           )
           .eq("user_id", user.id)
           .eq("due_date", today)
@@ -284,7 +289,7 @@ function Dashboard({ user, onLogout }) {
         const { data, error } = await supabase
           .from("tasks")
           .select(
-            "id, title, completed, priority, category, due_date"
+            "id, title, description, completed, priority, category, due_date, recurrence_type, recurrence_end_date, created_at, updated_at"
           )
           .eq("user_id", user.id)
           .gt("due_date", today)
@@ -376,6 +381,43 @@ function Dashboard({ user, onLogout }) {
       "Task updated successfully",
       "success"
     );
+  };
+
+  // =========================================
+  // OPEN EDIT MODAL
+  // =========================================
+
+  const handleEditTask = (task) => {
+    if (!task) {
+      return;
+    }
+
+    setEditingTask(task);
+  };
+
+  // =========================================
+  // OPEN DETAILS MODAL
+  // =========================================
+
+  const handleViewTask = (task) => {
+    if (!task) {
+      return;
+    }
+
+    setViewingTask(task);
+  };
+
+  // =========================================
+  // EDIT FROM DETAILS
+  // =========================================
+
+  const handleEditFromDetails = (task) => {
+    if (!task) {
+      return;
+    }
+
+    setViewingTask(null);
+    setEditingTask(task);
   };
 
   // =========================================
@@ -671,12 +713,15 @@ function Dashboard({ user, onLogout }) {
 
                 {todayTasks.map((task) => (
 
-                  <Link
+                  <button
                     key={task.id}
-                    to={`/tasks?task=${task.id}`}
-                    className={`group flex items-center gap-3 rounded-xl border p-3 transition ${
+                    type="button"
+                    onClick={() =>
+                      handleViewTask(task)
+                    }
+                    className={`group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
                       task.completed
-                        ? "border-green-500/10 bg-green-500/5"
+                        ? "border-green-500/10 bg-green-500/5 hover:border-green-500/30"
                         : "border-slate-800 bg-slate-950/50 hover:border-blue-500/40 hover:bg-blue-500/5"
                     }`}
                   >
@@ -738,7 +783,7 @@ function Dashboard({ user, onLogout }) {
                       className="shrink-0 text-slate-600 transition group-hover:translate-x-1 group-hover:text-blue-400"
                     />
 
-                  </Link>
+                  </button>
 
                 ))}
 
@@ -823,10 +868,13 @@ function Dashboard({ user, onLogout }) {
 
                   return (
 
-                    <Link
+                    <button
                       key={task.id}
-                      to={`/tasks?task=${task.id}`}
-                      className="group flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 transition hover:border-purple-500/40 hover:bg-purple-500/5"
+                      type="button"
+                      onClick={() =>
+                        handleViewTask(task)
+                      }
+                      className="group flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition hover:border-purple-500/40 hover:bg-purple-500/5"
                     >
 
                       {/* DATE */}
@@ -885,8 +933,7 @@ function Dashboard({ user, onLogout }) {
                         className="shrink-0 text-slate-600 transition group-hover:translate-x-1 group-hover:text-purple-400"
                       />
 
-                    </Link>
-
+                    </button>
                   );
                 })}
 
@@ -1088,7 +1135,21 @@ function Dashboard({ user, onLogout }) {
       </main>
 
       {/* ===================================== */}
-      {/* ADD TASK */}
+      {/* TASK DETAILS MODAL */}
+      {/* ===================================== */}
+
+      {viewingTask && (
+        <TaskDetails
+          task={viewingTask}
+          onClose={() =>
+            setViewingTask(null)
+          }
+          onEdit={handleEditFromDetails}
+        />
+      )}
+
+      {/* ===================================== */}
+      {/* ADD TASK MODAL */}
       {/* ===================================== */}
 
       {showTaskForm && (
@@ -1104,7 +1165,7 @@ function Dashboard({ user, onLogout }) {
       )}
 
       {/* ===================================== */}
-      {/* EDIT TASK */}
+      {/* EDIT TASK MODAL */}
       {/* ===================================== */}
 
       {editingTask && (
