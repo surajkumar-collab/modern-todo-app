@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { supabase } from "../supabaseClient";
@@ -7,74 +7,67 @@ import TaskForm from "./TaskForm";
 import TaskDetails from "./TaskDetails";
 import CategoryManager from "./CategoryManager";
 import Navbar from "./Navbar";
-import StatsCard from "./StatsCard";
 import ToastContainer from "./ToastContainer";
 
 import {
   FiCheckSquare,
   FiClock,
   FiCheckCircle,
+  FiCalendar,
+  FiTarget,
+  FiArrowUpRight,
+  FiArrowDownRight,
+  FiChevronRight,
   FiPlus,
   FiList,
   FiBarChart2,
-  FiCalendar,
-  FiTarget,
-  FiChevronRight,
+  FiPieChart,
+  FiActivity,
+  FiAlertCircle,
 } from "react-icons/fi";
 
 function Dashboard({ user, onLogout }) {
-  // =========================================
+  // =========================================================
   // STATES
-  // =========================================
+  // =========================================================
 
-  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [showTaskForm, setShowTaskForm] =
+    useState(false);
 
   const [showCategoryManager, setShowCategoryManager] =
     useState(false);
 
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [editingTask, setEditingTask] =
+    useState(null);
 
-  // EDIT TASK MODAL
-  const [editingTask, setEditingTask] = useState(null);
+  const [viewingTask, setViewingTask] =
+    useState(null);
 
-  // TASK DETAILS MODAL
-  const [viewingTask, setViewingTask] = useState(null);
+  const [refreshKey, setRefreshKey] =
+    useState(0);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] =
+    useState("");
 
-  const [stats, setStats] = useState({
-    total: 0,
-    active: 0,
-    completed: 0,
-  });
+  const [tasks, setTasks] =
+    useState([]);
 
-  const [statsLoading, setStatsLoading] = useState(true);
-
-  const [todayStats, setTodayStats] = useState({
-    total: 0,
-    completed: 0,
-  });
-
-  const [todayLoading, setTodayLoading] = useState(true);
-
-  const [todayTasks, setTodayTasks] = useState([]);
-
-  const [todayTasksLoading, setTodayTasksLoading] =
+  const [loading, setLoading] =
     useState(true);
 
-  const [upcomingTasks, setUpcomingTasks] = useState([]);
+  const [toasts, setToasts] =
+    useState([]);
 
-  const [upcomingTasksLoading, setUpcomingTasksLoading] =
-    useState(true);
-
-  const [toasts, setToasts] = useState([]);
-
-  // =========================================
+  // =========================================================
   // TOAST
-  // =========================================
+  // =========================================================
 
-  const addToast = (message, type = "success") => {
-    const id = Date.now() + Math.random();
+  const addToast = (
+    message,
+    type = "success"
+  ) => {
+    const id =
+      Date.now() + Math.random();
 
     setToasts((prev) => [
       ...prev,
@@ -85,22 +78,28 @@ function Dashboard({ user, onLogout }) {
       },
     ]);
 
-    setTimeout(() => {
+    window.setTimeout(() => {
       setToasts((prev) =>
-        prev.filter((toast) => toast.id !== id)
+        prev.filter(
+          (toast) =>
+            toast.id !== id
+        )
       );
     }, 3000);
   };
 
   const removeToast = (id) => {
     setToasts((prev) =>
-      prev.filter((toast) => toast.id !== id)
+      prev.filter(
+        (toast) =>
+          toast.id !== id
+      )
     );
   };
 
-  // =========================================
-  // USER NAME
-  // =========================================
+  // =========================================================
+  // USER
+  // =========================================================
 
   const userName =
     user?.user_metadata?.full_name ||
@@ -108,1035 +107,1529 @@ function Dashboard({ user, onLogout }) {
     user?.email?.split("@")[0] ||
     "User";
 
-  // =========================================
-  // TODAY
-  // =========================================
+  // =========================================================
+  // DATE HELPERS
+  // =========================================================
 
-  const getTodayString = () => {
-    const today = new Date();
-
-    const year = today.getFullYear();
+  const getDateString = (date) => {
+    const year =
+      date.getFullYear();
 
     const month = String(
-      today.getMonth() + 1
+      date.getMonth() + 1
     ).padStart(2, "0");
 
     const day = String(
-      today.getDate()
+      date.getDate()
     ).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
   };
 
-  // =========================================
-  // DASHBOARD STATS
-  // =========================================
+  const todayString =
+    getDateString(new Date());
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function fetchDashboardStats() {
-      if (!user?.id) {
-        return;
-      }
-
-      try {
-        setStatsLoading(true);
-
-        const { data, error } = await supabase
-          .from("tasks")
-          .select("completed")
-          .eq("user_id", user.id);
-
-        if (error) {
-          throw error;
-        }
-
-        const tasks = data || [];
-
-        const total = tasks.length;
-
-        const completed = tasks.filter(
-          (task) => task.completed === true
-        ).length;
-
-        const active = total - completed;
-
-        if (mounted) {
-          setStats({
-            total,
-            active,
-            completed,
-          });
-        }
-      } catch (error) {
-        console.error(
-          "Dashboard stats error:",
-          error
-        );
-      } finally {
-        if (mounted) {
-          setStatsLoading(false);
-        }
-      }
-    }
-
-    fetchDashboardStats();
-
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id, refreshKey]);
-
-  // =========================================
-  // TODAY'S TASKS
-  // =========================================
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function fetchTodayData() {
-      if (!user?.id) {
-        return;
-      }
-
-      try {
-        setTodayLoading(true);
-        setTodayTasksLoading(true);
-
-        const today = getTodayString();
-
-        const { data, error } = await supabase
-          .from("tasks")
-          .select(
-            "id, title, description, completed, priority, category, due_date, recurrence_type, recurrence_end_date, created_at, updated_at"
-          )
-          .eq("user_id", user.id)
-          .eq("due_date", today)
-          .order("completed", {
-            ascending: true,
-          })
-          .order("created_at", {
-            ascending: true,
-          });
-
-        if (error) {
-          throw error;
-        }
-
-        const tasks = data || [];
-
-        const total = tasks.length;
-
-        const completed = tasks.filter(
-          (task) => task.completed === true
-        ).length;
-
-        if (mounted) {
-          setTodayStats({
-            total,
-            completed,
-          });
-
-          setTodayTasks(tasks);
-        }
-      } catch (error) {
-        console.error(
-          "Today's tasks error:",
-          error
-        );
-
-        if (mounted) {
-          setTodayStats({
-            total: 0,
-            completed: 0,
-          });
-
-          setTodayTasks([]);
-        }
-      } finally {
-        if (mounted) {
-          setTodayLoading(false);
-          setTodayTasksLoading(false);
-        }
-      }
-    }
-
-    fetchTodayData();
-
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id, refreshKey]);
-
-  // =========================================
-  // UPCOMING TASKS
-  // =========================================
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function fetchUpcomingTasks() {
-      if (!user?.id) {
-        return;
-      }
-
-      try {
-        setUpcomingTasksLoading(true);
-
-        const today = getTodayString();
-
-        const { data, error } = await supabase
-          .from("tasks")
-          .select(
-            "id, title, description, completed, priority, category, due_date, recurrence_type, recurrence_end_date, created_at, updated_at"
-          )
-          .eq("user_id", user.id)
-          .gt("due_date", today)
-          .eq("completed", false)
-          .order("due_date", {
-            ascending: true,
-          })
-          .limit(5);
-
-        if (error) {
-          throw error;
-        }
-
-        if (mounted) {
-          setUpcomingTasks(data || []);
-        }
-      } catch (error) {
-        console.error(
-          "Upcoming tasks error:",
-          error
-        );
-
-        if (mounted) {
-          setUpcomingTasks([]);
-        }
-      } finally {
-        if (mounted) {
-          setUpcomingTasksLoading(false);
-        }
-      }
-    }
-
-    fetchUpcomingTasks();
-
-    return () => {
-      mounted = false;
-    };
-  }, [user?.id, refreshKey]);
-
-  // =========================================
-  // OVERALL PROGRESS
-  // =========================================
-
-  const completionPercentage =
-    stats.total === 0
-      ? 0
-      : Math.round(
-          (stats.completed / stats.total) * 100
-        );
-
-  // =========================================
-  // TODAY PROGRESS
-  // =========================================
-
-  const todayPercentage =
-    todayStats.total === 0
-      ? 0
-      : Math.round(
-          (todayStats.completed /
-            todayStats.total) *
-            100
-        );
-
-  // =========================================
-  // CREATE TASK
-  // =========================================
-
-  const handleTaskCreated = () => {
-    setShowTaskForm(false);
-
-    setRefreshKey((prev) => prev + 1);
-
-    addToast(
-      "Task created successfully",
-      "success"
-    );
-  };
-
-  // =========================================
-  // UPDATE TASK
-  // =========================================
-
-  const handleTaskUpdated = () => {
-    setEditingTask(null);
-
-    setRefreshKey((prev) => prev + 1);
-
-    addToast(
-      "Task updated successfully",
-      "success"
-    );
-  };
-
-  // =========================================
-  // OPEN EDIT MODAL
-  // =========================================
-
-  const handleEditTask = (task) => {
-    if (!task) {
-      return;
-    }
-
-    setEditingTask(task);
-  };
-
-  // =========================================
-  // OPEN DETAILS MODAL
-  // =========================================
-
-  const handleViewTask = (task) => {
-    if (!task) {
-      return;
-    }
-
-    setViewingTask(task);
-  };
-
-  // =========================================
-  // EDIT FROM DETAILS
-  // =========================================
-
-  const handleEditFromDetails = (task) => {
-    if (!task) {
-      return;
-    }
-
-    setViewingTask(null);
-    setEditingTask(task);
-  };
-
-  // =========================================
-  // CATEGORY MANAGER
-  // =========================================
-
-  const closeCategoryManager = () => {
-    setShowCategoryManager(false);
-
-    setRefreshKey((prev) => prev + 1);
-  };
-
-  // =========================================
-  // FORMAT DATE
-  // =========================================
-
-  const formatUpcomingDate = (dateString) => {
+  const formatDate = (dateString) => {
     if (!dateString) {
-      return {
-        day: "--",
-        month: "",
-        weekday: "",
-      };
+      return "";
     }
+
+    const [year, month, day] =
+      dateString.split("-");
 
     const date = new Date(
-      `${dateString}T00:00:00`
+      Number(year),
+      Number(month) - 1,
+      Number(day)
     );
 
-    return {
-      day: date.toLocaleDateString(
-        "en-IN",
-        {
-          day: "2-digit",
-        }
-      ),
-
-      month: date.toLocaleDateString(
-        "en-IN",
-        {
-          month: "short",
-        }
-      ),
-
-      weekday: date.toLocaleDateString(
-        "en-IN",
-        {
-          weekday: "short",
-        }
-      ),
-    };
+    return date.toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+      }
+    );
   };
 
-  // =========================================
-  // RENDER
-  // =========================================
+  const formatLongDate = () => {
+    return new Date().toLocaleDateString(
+      "en-IN",
+      {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  };
+
+  // =========================================================
+  // FETCH TASKS
+  // =========================================================
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchTasks() {
+      if (!user?.id) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        const {
+          data,
+          error,
+        } = await supabase
+          .from("tasks")
+          .select(
+            "id, title, description, completed, priority, category, due_date, recurrence_type, recurrence_end_date, created_at, updated_at"
+          )
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: false,
+          });
+
+        if (error) {
+          throw error;
+        }
+
+        if (mounted) {
+          setTasks(data || []);
+        }
+      } catch (error) {
+        console.error(
+          "Dashboard task fetch error:",
+          error
+        );
+
+        if (mounted) {
+          setTasks([]);
+
+          addToast(
+            "Failed to load dashboard data",
+            "error"
+          );
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchTasks();
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    user?.id,
+    refreshKey,
+  ]);
+
+  // =========================================================
+  // DASHBOARD DATA
+  // =========================================================
+
+  const dashboardData = useMemo(() => {
+    const safeTasks =
+      Array.isArray(tasks)
+        ? tasks
+        : [];
+
+    const total =
+      safeTasks.length;
+
+    const completedTasks =
+      safeTasks.filter(
+        (task) =>
+          task.completed === true
+      );
+
+    const activeTasks =
+      safeTasks.filter(
+        (task) =>
+          task.completed !== true
+      );
+
+    const completed =
+      completedTasks.length;
+
+    const active =
+      activeTasks.length;
+
+    const completionRate =
+      total === 0
+        ? 0
+        : Math.round(
+            (completed / total) *
+              100
+          );
+
+    // ---------------------------------------------
+    // TODAY
+    // ---------------------------------------------
+
+    const todayTasks =
+      safeTasks
+        .filter(
+          (task) =>
+            task.due_date ===
+            todayString
+        )
+        .sort((a, b) => {
+          if (
+            a.completed !==
+            b.completed
+          ) {
+            return a.completed
+              ? 1
+              : -1;
+          }
+
+          return (
+            new Date(
+              a.created_at
+            ) -
+            new Date(
+              b.created_at
+            )
+          );
+        });
+
+    const todayCompleted =
+      todayTasks.filter(
+        (task) =>
+          task.completed
+      ).length;
+
+    const todayProgress =
+      todayTasks.length === 0
+        ? 0
+        : Math.round(
+            (todayCompleted /
+              todayTasks.length) *
+              100
+          );
+
+    // ---------------------------------------------
+    // UPCOMING
+    // ---------------------------------------------
+
+    const upcomingTasks =
+      safeTasks
+        .filter(
+          (task) =>
+            !task.completed &&
+            task.due_date &&
+            task.due_date >
+              todayString
+        )
+        .sort(
+          (a, b) =>
+            new Date(
+              a.due_date
+            ) -
+            new Date(
+              b.due_date
+            )
+        )
+        .slice(0, 5);
+
+    // ---------------------------------------------
+    // OVERDUE
+    // ---------------------------------------------
+
+    const overdue =
+      safeTasks.filter(
+        (task) =>
+          !task.completed &&
+          task.due_date &&
+          task.due_date <
+            todayString
+      ).length;
+
+    // ---------------------------------------------
+    // WEEKLY DATA
+    // ---------------------------------------------
+
+    const weeklyData = [];
+
+    for (
+      let index = 6;
+      index >= 0;
+      index--
+    ) {
+      const date =
+        new Date();
+
+      date.setHours(
+        0,
+        0,
+        0,
+        0
+      );
+
+      date.setDate(
+        date.getDate() -
+          index
+      );
+
+      const dateString =
+        getDateString(date);
+
+      const count =
+        completedTasks.filter(
+          (task) => {
+            if (
+              !task.updated_at
+            ) {
+              return false;
+            }
+
+            const completedDate =
+              new Date(
+                task.updated_at
+              );
+
+            return (
+              getDateString(
+                completedDate
+              ) === dateString
+            );
+          }
+        ).length;
+
+      weeklyData.push({
+        date: dateString,
+        label:
+          date.toLocaleDateString(
+            "en-IN",
+            {
+              weekday: "short",
+            }
+          ),
+        count,
+      });
+    }
+
+    const maxWeekly =
+      Math.max(
+        ...weeklyData.map(
+          (item) =>
+            item.count
+        ),
+        1
+      );
+
+    // ---------------------------------------------
+    // CATEGORY DATA
+    // ---------------------------------------------
+
+    const categoryMap = {};
+
+    safeTasks.forEach(
+      (task) => {
+        const category =
+          task.category ||
+          "General";
+
+        categoryMap[
+          category
+        ] =
+          (categoryMap[
+            category
+          ] || 0) + 1;
+      }
+    );
+
+    const categoryData =
+      Object.entries(
+        categoryMap
+      )
+        .map(
+          ([
+            name,
+            count,
+          ]) => ({
+            name,
+            count,
+            percentage:
+              total === 0
+                ? 0
+                : Math.round(
+                    (count /
+                      total) *
+                      100
+                  ),
+          })
+        )
+        .sort(
+          (a, b) =>
+            b.count -
+            a.count
+        )
+        .slice(0, 5);
+
+    // ---------------------------------------------
+    // PRIORITY DATA
+    // ---------------------------------------------
+
+    const priorityData = [
+      {
+        name: "High",
+        key: "high",
+        count: safeTasks.filter(
+          (task) =>
+            task.priority ===
+            "high"
+        ).length,
+      },
+      {
+        name: "Medium",
+        key: "medium",
+        count: safeTasks.filter(
+          (task) =>
+            task.priority ===
+            "medium"
+        ).length,
+      },
+      {
+        name: "Low",
+        key: "low",
+        count: safeTasks.filter(
+          (task) =>
+            task.priority ===
+            "low"
+        ).length,
+      },
+    ];
+
+    return {
+      total,
+      completed,
+      active,
+      completionRate,
+      todayTasks,
+      todayCompleted,
+      todayProgress,
+      upcomingTasks,
+      overdue,
+      weeklyData,
+      maxWeekly,
+      categoryData,
+      priorityData,
+    };
+  }, [
+    tasks,
+    todayString,
+  ]);
+
+  // =========================================================
+  // TASK HANDLERS
+  // =========================================================
+
+  const handleTaskCreated =
+    () => {
+      setShowTaskForm(false);
+
+      setRefreshKey(
+        (prev) =>
+          prev + 1
+      );
+
+      addToast(
+        "Task created successfully",
+        "success"
+      );
+    };
+
+  const handleTaskUpdated =
+    () => {
+      setEditingTask(null);
+
+      setRefreshKey(
+        (prev) =>
+          prev + 1
+      );
+
+      addToast(
+        "Task updated successfully",
+        "success"
+      );
+    };
+
+  const handleEditTask =
+    (task) => {
+      setViewingTask(null);
+      setEditingTask(task);
+    };
+
+  const handleViewTask =
+    (task) => {
+      setViewingTask(task);
+    };
+
+  const closeCategoryManager =
+    () => {
+      setShowCategoryManager(
+        false
+      );
+
+      setRefreshKey(
+        (prev) =>
+          prev + 1
+      );
+    };
+
+  // =========================================================
+  // SEARCH
+  // =========================================================
+
+  const filteredTodayTasks =
+    dashboardData.todayTasks.filter(
+      (task) => {
+        const search =
+          searchQuery
+            .toLowerCase()
+            .trim();
+
+        if (!search) {
+          return true;
+        }
+
+        return (
+          task.title
+            ?.toLowerCase()
+            .includes(search) ||
+          task.description
+            ?.toLowerCase()
+            .includes(search) ||
+          task.category
+            ?.toLowerCase()
+            .includes(search)
+        );
+      }
+    );
+
+  // =========================================================
+  // LOADING
+  // =========================================================
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950">
+
+        <Navbar
+          user={user}
+          onLogout={onLogout}
+          searchQuery={searchQuery}
+          setSearchQuery={
+            setSearchQuery
+          }
+        />
+
+        <div className="flex min-h-[60vh] items-center justify-center">
+
+          <div className="text-center">
+
+            <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-slate-800 border-t-blue-500" />
+
+            <p className="mt-4 text-sm text-slate-500">
+              Loading your productivity...
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+    );
+  }
+
+  // =========================================================
+  // UI
+  // =========================================================
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen w-full bg-slate-950 text-white">
 
-      {/* ===================================== */}
+      {/* ================================================= */}
       {/* NAVBAR */}
-      {/* ===================================== */}
+      {/* ================================================= */}
 
       <Navbar
         user={user}
         onLogout={onLogout}
         searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
+        setSearchQuery={
+          setSearchQuery
+        }
       />
 
-      {/* ===================================== */}
-      {/* MAIN */}
-      {/* ===================================== */}
+      {/* ================================================= */}
+      {/* CONTENT */}
+      {/* ================================================= */}
 
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+      <main className="w-full">
 
-        {/* ================================= */}
-        {/* WELCOME */}
-        {/* ================================= */}
+        <div className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6 lg:px-8">
 
-        <section className="mb-8 sm:mb-10">
+          {/* ================================================= */}
+          {/* HEADER */}
+          {/* ================================================= */}
 
-          <p className="text-sm font-medium text-blue-400">
-            YOUR PRODUCTIVITY HUB
-          </p>
+          <section className="mb-6">
 
-          <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-            Good to see you, {userName} 👋
-          </h2>
-
-          <p className="mt-2 text-sm text-slate-400 sm:text-base">
-            Stay focused and get things done.
-          </p>
-
-        </section>
-
-        {/* ================================= */}
-        {/* STATS */}
-        {/* ================================= */}
-
-        <section className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
-
-          <StatsCard
-            title="Total Tasks"
-            value={
-              statsLoading
-                ? "..."
-                : stats.total
-            }
-            description="All your tasks"
-            icon={
-              <FiCheckSquare size={24} />
-            }
-            iconClassName="bg-blue-500/10 text-blue-400"
-            hoverClassName="hover:border-blue-500/30"
-          />
-
-          <StatsCard
-            title="Active Tasks"
-            value={
-              statsLoading
-                ? "..."
-                : stats.active
-            }
-            description="Tasks still in progress"
-            icon={
-              <FiClock size={24} />
-            }
-            iconClassName="bg-yellow-500/10 text-yellow-400"
-            hoverClassName="hover:border-yellow-500/30"
-          />
-
-          <StatsCard
-            title="Completed"
-            value={
-              statsLoading
-                ? "..."
-                : stats.completed
-            }
-            description="Tasks you finished"
-            icon={
-              <FiCheckCircle size={24} />
-            }
-            iconClassName="bg-green-500/10 text-green-400"
-            hoverClassName="hover:border-green-500/30"
-          />
-
-        </section>
-
-        {/* ================================= */}
-        {/* TODAY'S PROGRESS */}
-        {/* ================================= */}
-
-        <section className="mt-5 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5 p-5 sm:p-6">
-
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-
-            <div className="flex items-start gap-4">
-
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-                <FiTarget size={23} />
-              </div>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
 
               <div>
 
-                <p className="text-sm font-medium text-blue-400">
-                  TODAY'S PROGRESS
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-400">
+                  YOUR PRODUCTIVITY HUB
                 </p>
 
-                <h3 className="mt-1 text-xl font-bold text-white">
-                  {todayStats.completed} /{" "}
-                  {todayStats.total} tasks completed
-                </h3>
+                <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+                  Overview
+                </h1>
 
-                <p className="mt-1 text-sm text-slate-500">
-
-                  {todayStats.total === 0
-                    ? "No tasks scheduled for today."
-                    : todayPercentage === 100
-                    ? "Excellent! You completed everything for today. 🎉"
-                    : "Keep going — finish today's tasks."}
-
+                <p className="mt-2 text-sm text-slate-500">
+                  Here's how your TaskFlow is performing.
                 </p>
 
               </div>
 
-            </div>
+              <div className="flex items-center gap-3">
 
-            <div className="text-left sm:text-right">
+                <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5">
 
-              <p className="text-3xl font-bold text-white">
-                {todayLoading
-                  ? "..."
-                  : `${todayPercentage}%`}
-              </p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                    Today
+                  </p>
 
-              <p className="mt-1 text-xs text-slate-500">
-                today's completion
-              </p>
+                  <p className="mt-0.5 text-sm font-medium text-slate-300">
+                    {formatLongDate()}
+                  </p>
 
-            </div>
-
-          </div>
-
-          <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
-
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-700"
-              style={{
-                width: `${todayPercentage}%`,
-              }}
-            />
-
-          </div>
-
-        </section>
-
-        {/* ================================= */}
-        {/* TODAY'S TASKS */}
-        {/* ================================= */}
-
-        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-            <div>
-
-              <p className="text-sm font-medium text-blue-400">
-                TODAY
-              </p>
-
-              <h3 className="mt-1 text-xl font-bold text-white">
-                Today's Tasks
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Tasks scheduled for today.
-              </p>
-
-            </div>
-
-            <Link
-              to="/tasks"
-              className="inline-flex items-center gap-1 text-sm font-medium text-blue-400 transition hover:text-blue-300"
-            >
-              View all
-              <FiChevronRight size={16} />
-            </Link>
-
-          </div>
-
-          <div className="mt-5">
-
-            {todayTasksLoading ? (
-
-              <div className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-5 text-sm text-slate-500">
-                Loading today's tasks...
-              </div>
-
-            ) : todayTasks.length === 0 ? (
-
-              <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/50 px-5 py-8 text-center">
-
-                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-green-500/10 text-green-400">
-                  <FiCheckCircle size={21} />
                 </div>
-
-                <h4 className="mt-3 font-semibold text-white">
-                  No tasks for today
-                </h4>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  You're all clear. Add a task if you need one.
-                </p>
 
                 <button
                   type="button"
                   onClick={() =>
-                    setShowTaskForm(true)
+                    setShowTaskForm(
+                      true
+                    )
                   }
-                  className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-500"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/10 transition hover:scale-[1.02] hover:shadow-cyan-500/20"
                 >
-                  <FiPlus size={16} />
+                  <FiPlus
+                    size={17}
+                  />
                   Add Task
                 </button>
 
               </div>
 
-            ) : (
+            </div>
 
-              <div className="space-y-2">
+          </section>
 
-                {todayTasks.map((task) => (
+          {/* ================================================= */}
+          {/* STAT CARDS */}
+          {/* ================================================= */}
 
-                  <button
-                    key={task.id}
-                    type="button"
-                    onClick={() =>
-                      handleViewTask(task)
-                    }
-                    className={`group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${
-                      task.completed
-                        ? "border-green-500/10 bg-green-500/5 hover:border-green-500/30"
-                        : "border-slate-800 bg-slate-950/50 hover:border-blue-500/40 hover:bg-blue-500/5"
-                    }`}
-                  >
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                        task.completed
-                          ? "bg-green-500/10 text-green-400"
-                          : "bg-blue-500/10 text-blue-400"
-                      }`}
-                    >
-                      {task.completed ? (
-                        <FiCheckCircle size={18} />
-                      ) : (
-                        <FiCheckSquare size={18} />
-                      )}
-                    </div>
+            <DashboardStat
+              title="Total Tasks"
+              value={
+                dashboardData.total
+              }
+              subtitle="All your tasks"
+              icon={
+                <FiCheckSquare
+                  size={20}
+                />
+              }
+              accent="blue"
+            />
 
-                    <div className="min-w-0 flex-1">
+            <DashboardStat
+              title="Active Tasks"
+              value={
+                dashboardData.active
+              }
+              subtitle="Still in progress"
+              icon={
+                <FiClock
+                  size={20}
+                />
+              }
+              accent="cyan"
+            />
 
-                      <p
-                        className={`truncate text-sm font-semibold transition ${
-                          task.completed
-                            ? "text-slate-500 line-through"
-                            : "text-slate-200 group-hover:text-blue-300"
-                        }`}
-                      >
-                        {task.title}
-                      </p>
+            <DashboardStat
+              title="Completed"
+              value={
+                dashboardData.completed
+              }
+              subtitle="Tasks you finished"
+              icon={
+                <FiCheckCircle
+                  size={20}
+                />
+              }
+              accent="green"
+            />
 
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
+            <DashboardStat
+              title="Completion Rate"
+              value={`${dashboardData.completionRate}%`}
+              subtitle="Overall productivity"
+              icon={
+                <FiTarget
+                  size={20}
+                />
+              }
+              accent="purple"
+            />
 
-                        {task.category && (
-                          <span className="text-xs text-slate-600">
-                            {task.category}
-                          </span>
-                        )}
+          </section>
 
-                        {task.priority && (
-                          <span
-                            className={`text-xs font-medium ${
-                              task.priority === "high"
-                                ? "text-red-400"
-                                : task.priority === "medium"
-                                ? "text-yellow-400"
-                                : "text-green-400"
-                            }`}
-                          >
-                            {task.priority}
-                          </span>
-                        )}
+          {/* ================================================= */}
+          {/* MAIN ANALYTICS */}
+          {/* ================================================= */}
 
-                      </div>
+          <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(300px,1fr)]">
 
-                    </div>
+            {/* ================================================= */}
+            {/* PRODUCTIVITY OVERVIEW */}
+            {/* ================================================= */}
 
-                    <FiChevronRight
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+                <div>
+
+                  <div className="flex items-center gap-2">
+
+                    <FiActivity
+                      className="text-blue-400"
                       size={18}
-                      className="shrink-0 text-slate-600 transition group-hover:translate-x-1 group-hover:text-blue-400"
                     />
 
-                  </button>
+                    <h2 className="font-semibold text-white">
+                      Productivity Overview
+                    </h2>
 
-                ))}
+                  </div>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Completed tasks over the last 7 days.
+                  </p>
+
+                </div>
+
+                <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-500">
+                  Last 7 days
+                </div>
 
               </div>
 
-            )}
+              <div className="mt-6">
 
-          </div>
+                <ProductivityChart
+                  data={
+                    dashboardData.weeklyData
+                  }
+                  max={
+                    dashboardData.maxWeekly
+                  }
+                />
 
-        </section>
-
-        {/* ================================= */}
-        {/* UPCOMING TASKS */}
-        {/* ================================= */}
-
-        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-            <div>
-
-              <p className="text-sm font-medium text-purple-400">
-                UPCOMING
-              </p>
-
-              <h3 className="mt-1 text-xl font-bold text-white">
-                Upcoming Tasks
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Stay ahead of what's coming next.
-              </p>
+              </div>
 
             </div>
 
-            <Link
-              to="/tasks"
-              className="inline-flex items-center gap-1 text-sm font-medium text-purple-400 transition hover:text-purple-300"
-            >
-              View all
-              <FiChevronRight size={16} />
-            </Link>
+            {/* ================================================= */}
+            {/* TASK STATUS */}
+            {/* ================================================= */}
 
-          </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
 
-          <div className="mt-5">
+              <div className="flex items-center justify-between">
 
-            {upcomingTasksLoading ? (
+                <div>
 
-              <div className="rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-5 text-sm text-slate-500">
-                Loading upcoming tasks...
-              </div>
+                  <div className="flex items-center gap-2">
 
-            ) : upcomingTasks.length === 0 ? (
+                    <FiPieChart
+                      className="text-purple-400"
+                      size={18}
+                    />
 
-              <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/50 px-5 py-8 text-center">
+                    <h2 className="font-semibold text-white">
+                      Task Status
+                    </h2>
 
-                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
-                  <FiCalendar size={21} />
+                  </div>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Current task distribution.
+                  </p>
+
                 </div>
 
-                <h4 className="mt-3 font-semibold text-white">
-                  No upcoming tasks
-                </h4>
+              </div>
 
-                <p className="mt-1 text-sm text-slate-500">
-                  You're all caught up for now.
-                </p>
+              <div className="mt-6 flex items-center justify-center">
+
+                <StatusDonut
+                  completed={
+                    dashboardData.completed
+                  }
+                  active={
+                    dashboardData.active
+                  }
+                />
 
               </div>
 
-            ) : (
+              <div className="mt-6 space-y-3">
 
-              <div className="space-y-2">
+                <StatusLegend
+                  label="Completed"
+                  value={
+                    dashboardData.completed
+                  }
+                  total={
+                    dashboardData.total
+                  }
+                  dotClass="bg-cyan-400"
+                />
 
-                {upcomingTasks.map((task) => {
+                <StatusLegend
+                  label="Active"
+                  value={
+                    dashboardData.active
+                  }
+                  total={
+                    dashboardData.total
+                  }
+                  dotClass="bg-purple-400"
+                />
 
-                  const formattedDate =
-                    formatUpcomingDate(
-                      task.due_date
-                    );
+              </div>
 
-                  return (
+            </div>
 
-                    <button
-                      key={task.id}
-                      type="button"
-                      onClick={() =>
-                        handleViewTask(task)
+          </section>
+
+          {/* ================================================= */}
+          {/* SECOND ANALYTICS ROW */}
+          {/* ================================================= */}
+
+          <section className="mt-4 grid gap-4 lg:grid-cols-2">
+
+            {/* ================================================= */}
+            {/* WEEKLY ACTIVITY */}
+            {/* ================================================= */}
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+
+                  <div className="flex items-center gap-2">
+
+                    <FiBarChart2
+                      className="text-cyan-400"
+                      size={18}
+                    />
+
+                    <h2 className="font-semibold text-white">
+                      Weekly Activity
+                    </h2>
+
+                  </div>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Daily completed tasks.
+                  </p>
+
+                </div>
+
+                <span className="text-xs text-slate-600">
+                  {dashboardData.completed} total
+                </span>
+
+              </div>
+
+              <div className="mt-6">
+
+                <WeeklyBars
+                  data={
+                    dashboardData.weeklyData
+                  }
+                  max={
+                    dashboardData.maxWeekly
+                  }
+                />
+
+              </div>
+
+            </div>
+
+            {/* ================================================= */}
+            {/* PRIORITY */}
+            {/* ================================================= */}
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+
+                  <div className="flex items-center gap-2">
+
+                    <FiAlertCircle
+                      className="text-yellow-400"
+                      size={18}
+                    />
+
+                    <h2 className="font-semibold text-white">
+                      Priority Distribution
+                    </h2>
+
+                  </div>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    How your tasks are prioritized.
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="mt-6 space-y-5">
+
+                {dashboardData.priorityData.map(
+                  (item) => (
+                    <PriorityRow
+                      key={
+                        item.key
                       }
-                      className="group flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition hover:border-purple-500/40 hover:bg-purple-500/5"
-                    >
+                      item={
+                        item
+                      }
+                      total={
+                        dashboardData.total
+                      }
+                    />
+                  )
+                )}
 
-                      {/* DATE */}
+              </div>
 
-                      <div className="flex h-12 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-purple-500/10">
+            </div>
 
-                        <span className="text-[10px] font-medium uppercase text-purple-400">
-                          {formattedDate.weekday}
-                        </span>
+          </section>
 
-                        <span className="text-sm font-bold text-white">
-                          {formattedDate.day}{" "}
-                          {formattedDate.month}
-                        </span>
+          {/* ================================================= */}
+          {/* TODAY + UPCOMING */}
+          {/* ================================================= */}
 
-                      </div>
+          <section className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
 
-                      {/* TASK */}
+            {/* ================================================= */}
+            {/* TODAY */}
+            {/* ================================================= */}
 
-                      <div className="min-w-0 flex-1">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
 
-                        <p className="truncate text-sm font-semibold text-slate-200 transition group-hover:text-purple-300">
-                          {task.title}
-                        </p>
+              <div className="flex items-center justify-between">
 
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                <div>
 
-                          {task.category && (
-                            <span className="text-xs text-slate-600">
-                              {task.category}
-                            </span>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
+                    TODAY
+                  </p>
+
+                  <h2 className="mt-1 text-xl font-bold text-white">
+                    Today's Tasks
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {dashboardData.todayCompleted} of{" "}
+                    {dashboardData.todayTasks.length} completed
+                  </p>
+
+                </div>
+
+                <div className="text-right">
+
+                  <p className="text-2xl font-bold text-white">
+                    {dashboardData.todayProgress}%
+                  </p>
+
+                  <p className="text-[10px] uppercase tracking-wider text-slate-600">
+                    completion
+                  </p>
+
+                </div>
+
+              </div>
+
+              <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-800">
+
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-700"
+                  style={{
+                    width: `${dashboardData.todayProgress}%`,
+                  }}
+                />
+
+              </div>
+
+              <div className="mt-5 space-y-2">
+
+                {filteredTodayTasks.length ===
+                0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/40 px-5 py-8 text-center">
+
+                    <FiCalendar
+                      className="mx-auto text-slate-700"
+                      size={28}
+                    />
+
+                    <p className="mt-3 text-sm font-medium text-slate-400">
+                      No tasks for today
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-600">
+                      Add a task with today's due date.
+                    </p>
+
+                  </div>
+                ) : (
+                  filteredTodayTasks
+                    .slice(0, 5)
+                    .map((task) => (
+                      <button
+                        key={
+                          task.id
+                        }
+                        type="button"
+                        onClick={() =>
+                          handleViewTask(
+                            task
+                          )
+                        }
+                        className="group flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition hover:border-blue-500/40 hover:bg-blue-500/5"
+                      >
+
+                        <div
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                            task.completed
+                              ? "bg-green-500/10 text-green-400"
+                              : "bg-blue-500/10 text-blue-400"
+                          }`}
+                        >
+                          {task.completed ? (
+                            <FiCheckCircle
+                              size={17}
+                            />
+                          ) : (
+                            <FiClock
+                              size={17}
+                            />
                           )}
+                        </div>
 
-                          {task.priority && (
+                        <div className="min-w-0 flex-1">
+
+                          <p
+                            className={`truncate text-sm font-semibold ${
+                              task.completed
+                                ? "text-slate-600 line-through"
+                                : "text-slate-200 group-hover:text-blue-300"
+                            }`}
+                          >
+                            {task.title}
+                          </p>
+
+                          <div className="mt-1 flex items-center gap-2">
+
+                            <span className="text-xs text-slate-600">
+                              {task.category ||
+                                "General"}
+                            </span>
+
                             <span
                               className={`text-xs font-medium ${
-                                task.priority === "high"
+                                task.priority ===
+                                "high"
                                   ? "text-red-400"
-                                  : task.priority === "medium"
+                                  : task.priority ===
+                                    "medium"
                                   ? "text-yellow-400"
                                   : "text-green-400"
                               }`}
                             >
-                              {task.priority}
+                              {task.priority ||
+                                "medium"}
                             </span>
-                          )}
+
+                          </div>
+
+                        </div>
+
+                        <FiChevronRight
+                          size={17}
+                          className="shrink-0 text-slate-700 transition group-hover:translate-x-1 group-hover:text-blue-400"
+                        />
+
+                      </button>
+                    ))
+                )}
+
+              </div>
+
+              {dashboardData.todayTasks.length >
+                5 && (
+                <Link
+                  to="/tasks"
+                  className="mt-4 flex items-center justify-center gap-1 rounded-xl border border-slate-800 py-2.5 text-xs font-medium text-blue-400 transition hover:bg-blue-500/5"
+                >
+                  View all today's tasks
+                  <FiChevronRight
+                    size={14}
+                  />
+                </Link>
+              )}
+
+            </div>
+
+            {/* ================================================= */}
+            {/* UPCOMING */}
+            {/* ================================================= */}
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
+
+              <div className="flex items-start justify-between">
+
+                <div>
+
+                  <p className="text-xs font-semibold uppercase tracking-wider text-purple-400">
+                    UPCOMING
+                  </p>
+
+                  <h2 className="mt-1 text-xl font-bold text-white">
+                    Upcoming Tasks
+                  </h2>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Stay ahead of what's coming next.
+                  </p>
+
+                </div>
+
+                <Link
+                  to="/tasks"
+                  className="flex items-center gap-1 text-xs font-medium text-purple-400 transition hover:text-purple-300"
+                >
+                  View all
+                  <FiChevronRight
+                    size={14}
+                  />
+                </Link>
+
+              </div>
+
+              <div className="mt-5 space-y-2">
+
+                {dashboardData.upcomingTasks.length ===
+                0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/40 px-5 py-8 text-center">
+
+                    <FiTarget
+                      className="mx-auto text-slate-700"
+                      size={28}
+                    />
+
+                    <p className="mt-3 text-sm font-medium text-slate-400">
+                      No upcoming tasks
+                    </p>
+
+                    <p className="mt-1 text-xs text-slate-600">
+                      You're all caught up.
+                    </p>
+
+                  </div>
+                ) : (
+                  dashboardData.upcomingTasks.map(
+                    (task) => (
+                      <button
+                        key={
+                          task.id
+                        }
+                        type="button"
+                        onClick={() =>
+                          handleViewTask(
+                            task
+                          )
+                        }
+                        className="group flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition hover:border-purple-500/40 hover:bg-purple-500/5"
+                      >
+
+                        <div className="flex h-12 w-14 shrink-0 flex-col items-center justify-center rounded-xl bg-purple-500/10">
+
+                          <span className="text-[10px] font-semibold uppercase text-purple-400">
+                            {new Date(
+                              `${task.due_date}T00:00:00`
+                            ).toLocaleDateString(
+                              "en-IN",
+                              {
+                                weekday:
+                                  "short",
+                              }
+                            )}
+                          </span>
+
+                          <span className="text-sm font-bold text-white">
+                            {new Date(
+                              `${task.due_date}T00:00:00`
+                            ).getDate()}{" "}
+                            {new Date(
+                              `${task.due_date}T00:00:00`
+                            ).toLocaleDateString(
+                              "en-IN",
+                              {
+                                month:
+                                  "short",
+                              }
+                            )}
+                          </span>
+
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+
+                          <p className="truncate text-sm font-semibold text-slate-200 transition group-hover:text-purple-300">
+                            {task.title}
+                          </p>
+
+                          <div className="mt-1 flex items-center gap-2">
+
+                            <span className="truncate text-xs text-slate-600">
+                              {task.category ||
+                                "General"}
+                            </span>
+
+                            <span
+                              className={`text-xs font-medium ${
+                                task.priority ===
+                                "high"
+                                  ? "text-red-400"
+                                  : task.priority ===
+                                    "medium"
+                                  ? "text-yellow-400"
+                                  : "text-green-400"
+                              }`}
+                            >
+                              {task.priority ||
+                                "medium"}
+                            </span>
+
+                          </div>
+
+                        </div>
+
+                        <FiChevronRight
+                          size={17}
+                          className="shrink-0 text-slate-700 transition group-hover:translate-x-1 group-hover:text-purple-400"
+                        />
+
+                      </button>
+                    )
+                  )
+                )}
+
+              </div>
+
+            </div>
+
+          </section>
+
+          {/* ================================================= */}
+          {/* CATEGORY + QUICK ACTIONS */}
+          {/* ================================================= */}
+
+          <section className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+
+            {/* ================================================= */}
+            {/* CATEGORY */}
+            {/* ================================================= */}
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
+
+              <div className="flex items-center justify-between">
+
+                <div>
+
+                  <h2 className="font-semibold text-white">
+                    Categories
+                  </h2>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    Distribution of your tasks.
+                  </p>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowCategoryManager(
+                      true
+                    )
+                  }
+                  className="text-xs font-medium text-blue-400 hover:text-blue-300"
+                >
+                  Manage
+                </button>
+
+              </div>
+
+              <div className="mt-5 space-y-4">
+
+                {dashboardData.categoryData.length ===
+                0 ? (
+                  <p className="text-sm text-slate-600">
+                    No categories yet.
+                  </p>
+                ) : (
+                  dashboardData.categoryData.map(
+                    (category) => (
+                      <div
+                        key={
+                          category.name
+                        }
+                      >
+
+                        <div className="mb-1.5 flex items-center justify-between text-xs">
+
+                          <span className="text-slate-400">
+                            {category.name}
+                          </span>
+
+                          <span className="text-slate-600">
+                            {category.count}
+                          </span>
+
+                        </div>
+
+                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
+
+                          <div
+                            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
+                            style={{
+                              width: `${category.percentage}%`,
+                            }}
+                          />
 
                         </div>
 
                       </div>
+                    )
+                  )
+                )}
 
-                      {/* ARROW */}
+              </div>
 
-                      <FiChevronRight
-                        size={18}
-                        className="shrink-0 text-slate-600 transition group-hover:translate-x-1 group-hover:text-purple-400"
+            </div>
+
+            {/* ================================================= */}
+            {/* QUICK ACTIONS */}
+            {/* ================================================= */}
+
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 sm:p-6">
+
+              <div>
+
+                <h2 className="font-semibold text-white">
+                  Quick Actions
+                </h2>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  Jump directly where you need.
+                </p>
+
+              </div>
+
+              <div className="mt-5 grid gap-2">
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowTaskForm(
+                      true
+                    )
+                  }
+                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 p-3 text-left transition hover:border-blue-500/40 hover:bg-blue-500/5"
+                >
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+                      <FiPlus
+                        size={17}
                       />
+                    </div>
 
-                    </button>
-                  );
-                })}
+                    <span className="text-sm font-medium text-slate-300">
+                      Create Task
+                    </span>
+
+                  </div>
+
+                  <FiChevronRight
+                    size={16}
+                    className="text-slate-700"
+                  />
+
+                </button>
+
+                <Link
+                  to="/tasks"
+                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 p-3 transition hover:border-cyan-500/40 hover:bg-cyan-500/5"
+                >
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10 text-cyan-400">
+                      <FiList
+                        size={17}
+                      />
+                    </div>
+
+                    <span className="text-sm font-medium text-slate-300">
+                      View All Tasks
+                    </span>
+
+                  </div>
+
+                  <FiChevronRight
+                    size={16}
+                    className="text-slate-700"
+                  />
+
+                </Link>
+
+                <Link
+                  to="/analytics"
+                  className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950/50 p-3 transition hover:border-purple-500/40 hover:bg-purple-500/5"
+                >
+
+                  <div className="flex items-center gap-3">
+
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-500/10 text-purple-400">
+                      <FiBarChart2
+                        size={17}
+                      />
+                    </div>
+
+                    <span className="text-sm font-medium text-slate-300">
+                      Open Analytics
+                    </span>
+
+                  </div>
+
+                  <FiChevronRight
+                    size={16}
+                    className="text-slate-700"
+                  />
+
+                </Link>
 
               </div>
-
-            )}
-
-          </div>
-
-        </section>
-
-        {/* ================================= */}
-        {/* OVERALL PROGRESS */}
-        {/* ================================= */}
-
-        <section className="mt-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 sm:p-6">
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-            <div>
-
-              <p className="text-sm font-medium text-slate-400">
-                Overall Progress
-              </p>
-
-              <p className="mt-1 text-sm text-slate-500">
-                {stats.completed} of{" "}
-                {stats.total} tasks completed
-              </p>
 
             </div>
 
-            <div className="text-2xl font-bold text-white">
-              {statsLoading
-                ? "..."
-                : `${completionPercentage}%`}
-            </div>
+          </section>
 
-          </div>
+          {/* ================================================= */}
+          {/* OVERALL PROGRESS */}
+          {/* ================================================= */}
 
-          <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
+          <section className="mt-4 rounded-2xl border border-blue-500/20 bg-gradient-to-br from-blue-500/5 via-slate-900/60 to-cyan-500/5 p-5 sm:p-6">
 
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-500"
-              style={{
-                width: `${completionPercentage}%`,
-              }}
-            />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
-          </div>
+              <div>
 
-        </section>
+                <div className="flex items-center gap-2">
 
-        {/* ================================= */}
-        {/* QUICK ACTIONS */}
-        {/* ================================= */}
+                  <FiTarget
+                    className="text-blue-400"
+                    size={18}
+                  />
 
-        <section className="mt-8 sm:mt-10">
+                  <h2 className="font-semibold text-white">
+                    Overall Progress
+                  </h2>
 
-          <div className="mb-5">
+                </div>
 
-            <h3 className="text-xl font-bold text-white">
-              Quick Actions
-            </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  {dashboardData.completed} of{" "}
+                  {dashboardData.total} tasks completed
+                </p>
 
-            <p className="mt-1 text-sm text-slate-500">
-              Jump directly to what you need.
-            </p>
-
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-            {/* ADD TASK */}
-
-            <button
-              type="button"
-              onClick={() =>
-                setShowTaskForm(true)
-              }
-              className="group rounded-2xl border border-blue-500/20 bg-blue-500/5 p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-500/40 hover:bg-blue-500/10"
-            >
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-                <FiPlus size={22} />
               </div>
 
-              <h4 className="mt-4 font-semibold text-white">
-                Add Task
-              </h4>
+              <div className="text-left sm:text-right">
 
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Create a new task and start working.
-              </p>
+                <p className="text-3xl font-bold text-white">
+                  {dashboardData.completionRate}%
+                </p>
 
-            </button>
+                {dashboardData.overdue >
+                  0 && (
+                  <p className="mt-1 text-xs text-red-400">
+                    {dashboardData.overdue} overdue
+                  </p>
+                )}
 
-            {/* VIEW TASKS */}
-
-            <Link
-              to="/tasks"
-              className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
-            >
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-800 text-slate-300">
-                <FiList size={22} />
               </div>
-
-              <h4 className="mt-4 font-semibold text-white">
-                View Tasks
-              </h4>
-
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Manage, filter and organize your tasks.
-              </p>
-
-            </Link>
-
-            {/* ANALYTICS */}
-
-            <Link
-              to="/analytics"
-              className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
-            >
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
-                <FiBarChart2 size={22} />
-              </div>
-
-              <h4 className="mt-4 font-semibold text-white">
-                View Analytics
-              </h4>
-
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Track your productivity and progress.
-              </p>
-
-            </Link>
-
-            {/* CALENDAR */}
-
-            <Link
-              to="/calendar"
-              className="group rounded-2xl border border-slate-800 bg-slate-900/60 p-5 text-left transition hover:-translate-y-0.5 hover:border-slate-700 hover:bg-slate-900"
-            >
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400">
-                <FiCalendar size={22} />
-              </div>
-
-              <h4 className="mt-4 font-semibold text-white">
-                Open Calendar
-              </h4>
-
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                Plan your tasks by date.
-              </p>
-
-            </Link>
-
-          </div>
-
-        </section>
-
-        {/* ================================= */}
-        {/* CATEGORIES */}
-        {/* ================================= */}
-
-        <section className="mt-8 rounded-2xl border border-slate-800 bg-slate-900/40 p-5 sm:mt-10 sm:p-6">
-
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
-            <div>
-
-              <h3 className="font-semibold text-white">
-                Categories
-              </h3>
-
-              <p className="mt-1 text-sm text-slate-500">
-                Organize your tasks with custom categories.
-              </p>
 
             </div>
 
-            <button
-              type="button"
-              onClick={() =>
-                setShowCategoryManager(true)
-              }
-              className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-slate-300 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white"
-            >
-              Manage Categories
-            </button>
+            <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800">
 
-          </div>
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-blue-600 via-cyan-500 to-cyan-300 shadow-lg shadow-cyan-500/20 transition-all duration-700"
+                style={{
+                  width: `${dashboardData.completionRate}%`,
+                }}
+              />
 
-        </section>
+            </div>
+
+          </section>
+
+        </div>
 
       </main>
 
-      {/* ===================================== */}
-      {/* TASK DETAILS MODAL */}
-      {/* ===================================== */}
+      {/* ================================================= */}
+      {/* TASK DETAILS */}
+      {/* ================================================= */}
 
       {viewingTask && (
         <TaskDetails
@@ -1144,13 +1637,15 @@ function Dashboard({ user, onLogout }) {
           onClose={() =>
             setViewingTask(null)
           }
-          onEdit={handleEditFromDetails}
+          onEdit={
+            handleEditTask
+          }
         />
       )}
 
-      {/* ===================================== */}
-      {/* ADD TASK MODAL */}
-      {/* ===================================== */}
+      {/* ================================================= */}
+      {/* ADD TASK */}
+      {/* ================================================= */}
 
       {showTaskForm && (
         <TaskForm
@@ -1164,9 +1659,9 @@ function Dashboard({ user, onLogout }) {
         />
       )}
 
-      {/* ===================================== */}
-      {/* EDIT TASK MODAL */}
-      {/* ===================================== */}
+      {/* ================================================= */}
+      {/* EDIT TASK */}
+      {/* ================================================= */}
 
       {editingTask && (
         <TaskForm
@@ -1181,9 +1676,9 @@ function Dashboard({ user, onLogout }) {
         />
       )}
 
-      {/* ===================================== */}
+      {/* ================================================= */}
       {/* CATEGORY MANAGER */}
-      {/* ===================================== */}
+      {/* ================================================= */}
 
       {showCategoryManager && (
         <CategoryManager
@@ -1195,14 +1690,580 @@ function Dashboard({ user, onLogout }) {
         />
       )}
 
-      {/* ===================================== */}
-      {/* TOAST */}
-      {/* ===================================== */}
+      {/* ================================================= */}
+      {/* TOASTS */}
+      {/* ================================================= */}
 
       <ToastContainer
         toasts={toasts}
-        removeToast={removeToast}
+        removeToast={
+          removeToast
+        }
       />
+
+    </div>
+  );
+}
+
+// =========================================================
+// STAT CARD
+// =========================================================
+
+function DashboardStat({
+  title,
+  value,
+  subtitle,
+  icon,
+  accent,
+}) {
+  const accentStyles = {
+    blue: {
+      icon:
+        "bg-blue-500/10 text-blue-400",
+      glow:
+        "hover:border-blue-500/30",
+    },
+
+    cyan: {
+      icon:
+        "bg-cyan-500/10 text-cyan-400",
+      glow:
+        "hover:border-cyan-500/30",
+    },
+
+    green: {
+      icon:
+        "bg-green-500/10 text-green-400",
+      glow:
+        "hover:border-green-500/30",
+    },
+
+    purple: {
+      icon:
+        "bg-purple-500/10 text-purple-400",
+      glow:
+        "hover:border-purple-500/30",
+    },
+  };
+
+  const style =
+    accentStyles[
+      accent
+    ] || accentStyles.blue;
+
+  return (
+    <div
+      className={`group relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/60 p-5 transition duration-300 ${style.glow}`}
+    >
+
+      <div className="absolute -right-10 -top-10 h-24 w-24 rounded-full bg-blue-500/5 blur-2xl transition group-hover:bg-blue-500/10" />
+
+      <div className="relative flex items-start justify-between">
+
+        <div>
+
+          <p className="text-xs font-medium text-slate-500">
+            {title}
+          </p>
+
+          <p className="mt-2 text-3xl font-bold tracking-tight text-white">
+            {value}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-600">
+            {subtitle}
+          </p>
+
+        </div>
+
+        <div
+          className={`flex h-10 w-10 items-center justify-center rounded-xl ${style.icon}`}
+        >
+          {icon}
+        </div>
+
+      </div>
+
+    </div>
+  );
+}
+
+// =========================================================
+// PRODUCTIVITY CHART
+// =========================================================
+
+function ProductivityChart({
+  data,
+  max,
+}) {
+  const width = 760;
+  const height = 260;
+  const paddingX = 24;
+  const paddingY = 25;
+
+  const usableWidth =
+    width -
+    paddingX * 2;
+
+  const usableHeight =
+    height -
+    paddingY * 2;
+
+  const points = data.map(
+    (item, index) => {
+      const x =
+        paddingX +
+        (index /
+          Math.max(
+            data.length - 1,
+            1
+          )) *
+          usableWidth;
+
+      const y =
+        height -
+        paddingY -
+        (item.count /
+          Math.max(max, 1)) *
+          usableHeight;
+
+      return {
+        x,
+        y,
+      };
+    }
+  );
+
+  const linePath =
+    points.length > 0
+      ? points
+          .map(
+            (point, index) =>
+              `${
+                index === 0
+                  ? "M"
+                  : "L"
+              } ${point.x} ${point.y}`
+          )
+          .join(" ")
+      : "";
+
+  const areaPath =
+    points.length > 0
+      ? `${linePath} L ${
+          points[
+            points.length - 1
+          ].x
+        } ${
+          height -
+          paddingY
+        } L ${points[0].x} ${
+          height -
+          paddingY
+        } Z`
+      : "";
+
+  return (
+    <div className="w-full overflow-hidden">
+
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="h-auto w-full"
+        preserveAspectRatio="none"
+      >
+
+        <defs>
+
+          <linearGradient
+            id="productivityFill"
+            x1="0"
+            y1="0"
+            x2="0"
+            y2="1"
+          >
+
+            <stop
+              offset="0%"
+              stopColor="#8b5cf6"
+              stopOpacity="0.30"
+            />
+
+            <stop
+              offset="100%"
+              stopColor="#8b5cf6"
+              stopOpacity="0"
+            />
+
+          </linearGradient>
+
+          <linearGradient
+            id="productivityLine"
+            x1="0"
+            y1="0"
+            x2="1"
+            y2="0"
+          >
+
+            <stop
+              offset="0%"
+              stopColor="#3b82f6"
+            />
+
+            <stop
+              offset="100%"
+              stopColor="#22d3ee"
+            />
+
+          </linearGradient>
+
+        </defs>
+
+        {/* GRID */}
+
+        {[0, 1, 2, 3].map(
+          (line) => {
+            const y =
+              paddingY +
+              (line / 3) *
+                usableHeight;
+
+            return (
+              <line
+                key={line}
+                x1={paddingX}
+                x2={
+                  width -
+                  paddingX
+                }
+                y1={y}
+                y2={y}
+                stroke="#1e293b"
+                strokeWidth="1"
+              />
+            );
+          }
+        )}
+
+        {/* AREA */}
+
+        {areaPath && (
+          <path
+            d={areaPath}
+            fill="url(#productivityFill)"
+          />
+        )}
+
+        {/* LINE */}
+
+        {linePath && (
+          <path
+            d={linePath}
+            fill="none"
+            stroke="url(#productivityLine)"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+
+        {/* POINTS */}
+
+        {points.map(
+          (point, index) => (
+            <g
+              key={index}
+            >
+
+              <circle
+                cx={
+                  point.x
+                }
+                cy={
+                  point.y
+                }
+                r="7"
+                fill="#0f172a"
+                stroke="#22d3ee"
+                strokeWidth="3"
+              />
+
+              <circle
+                cx={
+                  point.x
+                }
+                cy={
+                  point.y
+                }
+                r="2.5"
+                fill="#22d3ee"
+              />
+
+            </g>
+          )
+        )}
+
+      </svg>
+
+      <div className="mt-2 grid grid-cols-7">
+
+        {data.map(
+          (item) => (
+            <div
+              key={
+                item.date
+              }
+              className="text-center text-[10px] font-medium text-slate-600"
+            >
+              {item.label}
+            </div>
+          )
+        )}
+
+      </div>
+
+    </div>
+  );
+}
+
+// =========================================================
+// DONUT
+// =========================================================
+
+function StatusDonut({
+  completed,
+  active,
+}) {
+  const total =
+    completed +
+    active;
+
+  const completedPercentage =
+    total === 0
+      ? 0
+      : Math.round(
+          (completed /
+            total) *
+            100
+        );
+
+  const activePercentage =
+    total === 0
+      ? 0
+      : 100 -
+        completedPercentage;
+
+  return (
+    <div className="relative h-44 w-44">
+
+      <div
+        className="h-full w-full rounded-full"
+        style={{
+          background:
+            `conic-gradient(#22d3ee 0% ${completedPercentage}%, #8b5cf6 ${completedPercentage}% 100%)`,
+        }}
+      />
+
+      <div className="absolute inset-[18px] flex flex-col items-center justify-center rounded-full bg-slate-900">
+
+        <p className="text-3xl font-bold text-white">
+          {completedPercentage}%
+        </p>
+
+        <p className="text-[10px] uppercase tracking-wider text-slate-600">
+          completed
+        </p>
+
+      </div>
+
+    </div>
+  );
+}
+
+// =========================================================
+// STATUS LEGEND
+// =========================================================
+
+function StatusLegend({
+  label,
+  value,
+  total,
+  dotClass,
+}) {
+  const percentage =
+    total === 0
+      ? 0
+      : Math.round(
+          (value /
+            total) *
+            100
+        );
+
+  return (
+    <div className="flex items-center justify-between">
+
+      <div className="flex items-center gap-2">
+
+        <span
+          className={`h-2.5 w-2.5 rounded-full ${dotClass}`}
+        />
+
+        <span className="text-xs text-slate-400">
+          {label}
+        </span>
+
+      </div>
+
+      <div className="flex items-center gap-3">
+
+        <span className="text-xs font-semibold text-white">
+          {value}
+        </span>
+
+        <span className="w-10 text-right text-[10px] text-slate-600">
+          {percentage}%
+        </span>
+
+      </div>
+
+    </div>
+  );
+}
+
+// =========================================================
+// WEEKLY BARS
+// =========================================================
+
+function WeeklyBars({
+  data,
+  max,
+}) {
+  return (
+    <div className="flex h-48 items-end justify-between gap-2">
+
+      {data.map(
+        (item) => {
+          const height =
+            item.count === 0
+              ? 5
+              : Math.max(
+                  12,
+                  Math.round(
+                    (item.count /
+                      Math.max(
+                        max,
+                        1
+                      )) *
+                      100
+                  )
+                );
+
+          return (
+            <div
+              key={
+                item.date
+              }
+              className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+            >
+
+              <span className="text-[10px] font-medium text-slate-600">
+                {item.count}
+              </span>
+
+              <div className="flex h-full w-full items-end justify-center">
+
+                <div
+                  className="w-full max-w-9 rounded-t-lg bg-gradient-to-t from-blue-600 to-cyan-400 shadow-lg shadow-cyan-500/10 transition-all duration-500 hover:from-purple-600 hover:to-cyan-400"
+                  style={{
+                    height: `${height}%`,
+                  }}
+                />
+
+              </div>
+
+              <span className="text-[10px] font-medium text-slate-600">
+                {item.label}
+              </span>
+
+            </div>
+          );
+        }
+      )}
+
+    </div>
+  );
+}
+
+// =========================================================
+// PRIORITY ROW
+// =========================================================
+
+function PriorityRow({
+  item,
+  total,
+}) {
+  const percentage =
+    total === 0
+      ? 0
+      : Math.round(
+          (item.count /
+            total) *
+            100
+        );
+
+  const barClass =
+    item.key === "high"
+      ? "from-red-500 to-orange-400"
+      : item.key ===
+        "medium"
+      ? "from-yellow-500 to-amber-400"
+      : "from-green-500 to-emerald-400";
+
+  const textClass =
+    item.key === "high"
+      ? "text-red-400"
+      : item.key ===
+        "medium"
+      ? "text-yellow-400"
+      : "text-green-400";
+
+  return (
+    <div>
+
+      <div className="mb-2 flex items-center justify-between">
+
+        <div className="flex items-center gap-2">
+
+          <span
+            className={`h-2 w-2 rounded-full ${barClass.replace(
+              "from-",
+              "bg-"
+            )}`}
+          />
+
+          <span className="text-xs text-slate-400">
+            {item.name}
+          </span>
+
+        </div>
+
+        <span
+          className={`text-xs font-semibold ${textClass}`}
+        >
+          {item.count}
+        </span>
+
+      </div>
+
+      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+
+        <div
+          className={`h-full rounded-full bg-gradient-to-r ${barClass} transition-all duration-500`}
+          style={{
+            width: `${percentage}%`,
+          }}
+        />
+
+      </div>
 
     </div>
   );

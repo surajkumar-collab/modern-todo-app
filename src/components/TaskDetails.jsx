@@ -1,3 +1,5 @@
+import { createPortal } from "react-dom";
+
 import {
   FiX,
   FiEdit3,
@@ -52,15 +54,16 @@ function TaskDetails({
       return "Not available";
     }
 
-    return new Date(
-      dateString
-    ).toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return new Date(dateString).toLocaleString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
   };
 
   // =========================
@@ -134,9 +137,13 @@ function TaskDetails({
     }
   };
 
-  return (
+  // =========================
+  // MODAL
+  // =========================
+
+  const modal = (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
       onMouseDown={(event) => {
         if (
           event.target ===
@@ -147,14 +154,14 @@ function TaskDetails({
       }}
     >
       {/* ========================= */}
-      {/* MODAL */}
+      {/* MODAL CONTAINER */}
       {/* ========================= */}
 
       <div
         className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl"
-        onMouseDown={(event) =>
-          event.stopPropagation()
-        }
+        onMouseDown={(event) => {
+          event.stopPropagation();
+        }}
       >
         {/* ========================= */}
         {/* HEADER */}
@@ -179,6 +186,7 @@ function TaskDetails({
             onClick={onClose}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-slate-500 transition hover:bg-slate-800 hover:text-white"
             title="Close"
+            aria-label="Close task details"
           >
             <FiX size={20} />
           </button>
@@ -484,6 +492,15 @@ function TaskDetails({
 
       </div>
     </div>
+  );
+
+  // =========================
+  // RENDER THROUGH PORTAL
+  // =========================
+
+  return createPortal(
+    modal,
+    document.body
   );
 }
 
