@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   FiX,
   FiCalendar,
@@ -6,7 +7,9 @@ import {
   FiEdit3,
   FiRepeat,
 } from "react-icons/fi";
+
 import { supabase } from "../supabaseClient";
+import { createNotification } from "./notificationService";
 
 const TITLE_MAX_LENGTH = 100;
 const DESCRIPTION_MAX_LENGTH = 500;
@@ -25,10 +28,14 @@ function TaskForm({
   // =========================
 
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("General");
-  const [priority, setPriority] = useState("medium");
-  const [dueDate, setDueDate] = useState("");
+  const [description, setDescription] =
+    useState("");
+  const [category, setCategory] =
+    useState("General");
+  const [priority, setPriority] =
+    useState("medium");
+  const [dueDate, setDueDate] =
+    useState("");
 
   // =========================
   // RECURRENCE STATES
@@ -44,7 +51,9 @@ function TaskForm({
   // CATEGORY STATES
   // =========================
 
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] =
+    useState([]);
+
   const [categoriesLoading, setCategoriesLoading] =
     useState(true);
 
@@ -52,8 +61,11 @@ function TaskForm({
   // OTHER STATES
   // =========================
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [loading, setLoading] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
 
   // =========================
   // TODAY'S DATE
@@ -62,7 +74,8 @@ function TaskForm({
   const getTodayDate = () => {
     const today = new Date();
 
-    const year = today.getFullYear();
+    const year =
+      today.getFullYear();
 
     const month = String(
       today.getMonth() + 1
@@ -88,21 +101,24 @@ function TaskForm({
     setCategoriesLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: true,
-        });
+      const { data, error } =
+        await supabase
+          .from("categories")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", {
+            ascending: true,
+          });
 
       if (error) {
         throw error;
       }
 
-      const fetchedCategories = data || [];
+      const fetchedCategories =
+        data || [];
 
       // Always keep General available
+
       const hasGeneral =
         fetchedCategories.some(
           (item) =>
@@ -124,11 +140,13 @@ function TaskForm({
       }
 
       // Editing task with existing category
+
       if (task?.category) {
         const existingCategory =
           finalCategories.find(
             (item) =>
-              item.name === task.category
+              item.name ===
+              task.category
           );
 
         if (existingCategory) {
@@ -140,12 +158,12 @@ function TaskForm({
             task.category
           );
         } else {
-          // Keep old category visible
-          // even if deleted later
           setCategories([
             {
-              id: "current-task-category",
-              name: task.category,
+              id:
+                "current-task-category",
+              name:
+                task.category,
             },
             ...finalCategories,
           ]);
@@ -179,7 +197,8 @@ function TaskForm({
       ]);
 
       setCategory(
-        task?.category || "General"
+        task?.category ||
+          "General"
       );
     } finally {
       setCategoriesLoading(false);
@@ -201,11 +220,13 @@ function TaskForm({
       );
 
       setCategory(
-        task.category || "General"
+        task.category ||
+          "General"
       );
 
       setPriority(
-        task.priority || "medium"
+        task.priority ||
+          "medium"
       );
 
       setDueDate(
@@ -213,11 +234,13 @@ function TaskForm({
       );
 
       setRecurrenceType(
-        task.recurrence_type || "none"
+        task.recurrence_type ||
+          "none"
       );
 
       setRecurrenceEndDate(
-        task.recurrence_end_date || ""
+        task.recurrence_end_date ||
+          ""
       );
     } else {
       setTitle("");
@@ -249,7 +272,8 @@ function TaskForm({
   // =========================
 
   const handleTitleChange = (e) => {
-    const value = e.target.value;
+    const value =
+      e.target.value;
 
     if (
       value.length <=
@@ -264,19 +288,19 @@ function TaskForm({
   // DESCRIPTION CHANGE
   // =========================
 
-  const handleDescriptionChange = (
-    e
-  ) => {
-    const value = e.target.value;
+  const handleDescriptionChange =
+    (e) => {
+      const value =
+        e.target.value;
 
-    if (
-      value.length <=
-      DESCRIPTION_MAX_LENGTH
-    ) {
-      setDescription(value);
-      setError("");
-    }
-  };
+      if (
+        value.length <=
+        DESCRIPTION_MAX_LENGTH
+      ) {
+        setDescription(value);
+        setError("");
+      }
+    };
 
   // =========================
   // DUE DATE CHANGE
@@ -285,7 +309,10 @@ function TaskForm({
   const handleDueDateChange = (
     e
   ) => {
-    setDueDate(e.target.value);
+    setDueDate(
+      e.target.value
+    );
+
     setError("");
   };
 
@@ -293,33 +320,31 @@ function TaskForm({
   // RECURRENCE CHANGE
   // =========================
 
-  const handleRecurrenceChange = (
-    e
-  ) => {
-    const value = e.target.value;
+  const handleRecurrenceChange =
+    (e) => {
+      const value =
+        e.target.value;
 
-    setRecurrenceType(value);
-    setError("");
+      setRecurrenceType(value);
+      setError("");
 
-    // Clear end date when recurrence
-    // is disabled
-    if (value === "none") {
-      setRecurrenceEndDate("");
-    }
-  };
+      if (value === "none") {
+        setRecurrenceEndDate("");
+      }
+    };
 
   // =========================
   // RECURRENCE END DATE
   // =========================
 
-  const handleRecurrenceEndDateChange = (
-    e
-  ) => {
-    setRecurrenceEndDate(
-      e.target.value
-    );
-    setError("");
-  };
+  const handleRecurrenceEndDateChange =
+    (e) => {
+      setRecurrenceEndDate(
+        e.target.value
+      );
+
+      setError("");
+    };
 
   // =========================
   // SUBMIT
@@ -405,7 +430,8 @@ function TaskForm({
     // =========================
 
     if (dueDate) {
-      const today = getTodayDate();
+      const today =
+        getTodayDate();
 
       if (dueDate < today) {
         setError(
@@ -420,7 +446,8 @@ function TaskForm({
     // =========================
 
     if (
-      recurrenceType !== "none" &&
+      recurrenceType !==
+        "none" &&
       !dueDate
     ) {
       setError(
@@ -430,7 +457,8 @@ function TaskForm({
     }
 
     if (
-      recurrenceType !== "none" &&
+      recurrenceType !==
+        "none" &&
       recurrenceEndDate
     ) {
       if (
@@ -460,7 +488,8 @@ function TaskForm({
           await supabase
             .from("tasks")
             .update({
-              title: trimmedTitle,
+              title:
+                trimmedTitle,
 
               description:
                 trimmedDescription ||
@@ -471,7 +500,8 @@ function TaskForm({
               priority,
 
               due_date:
-                dueDate || null,
+                dueDate ||
+                null,
 
               recurrence_type:
                 recurrenceType,
@@ -486,7 +516,10 @@ function TaskForm({
               updated_at:
                 new Date().toISOString(),
             })
-            .eq("id", task.id)
+            .eq(
+              "id",
+              task.id
+            )
             .eq(
               "user_id",
               user.id
@@ -497,6 +530,18 @@ function TaskForm({
         if (error) {
           throw error;
         }
+
+        // =========================
+        // UPDATE NOTIFICATION
+        // =========================
+
+        await createNotification({
+          userId: user.id,
+          taskId: data.id,
+          type: "task_updated",
+          title: "Task updated",
+          message: `"${data.title}" was updated successfully.`,
+        });
 
         if (onTaskUpdated) {
           onTaskUpdated(data);
@@ -514,9 +559,11 @@ function TaskForm({
           .from("tasks")
           .insert([
             {
-              user_id: user.id,
+              user_id:
+                user.id,
 
-              title: trimmedTitle,
+              title:
+                trimmedTitle,
 
               description:
                 trimmedDescription ||
@@ -527,7 +574,8 @@ function TaskForm({
               priority,
 
               due_date:
-                dueDate || null,
+                dueDate ||
+                null,
 
               recurrence_type:
                 recurrenceType,
@@ -546,6 +594,18 @@ function TaskForm({
       if (error) {
         throw error;
       }
+
+      // =========================
+      // CREATE NOTIFICATION
+      // =========================
+
+      await createNotification({
+        userId: user.id,
+        taskId: data.id,
+        type: "task_created",
+        title: "Task created",
+        message: `"${data.title}" has been added to your tasks.`,
+      });
 
       if (onTaskCreated) {
         onTaskCreated(data);
@@ -574,9 +634,7 @@ function TaskForm({
 
       <div className="my-auto w-full max-w-lg rounded-2xl border border-slate-700 bg-slate-900 p-5 shadow-2xl sm:p-6">
 
-        {/* ========================= */}
         {/* HEADER */}
-        {/* ========================= */}
 
         <div className="mb-6 flex items-start justify-between gap-4">
 
@@ -608,9 +666,7 @@ function TaskForm({
 
         </div>
 
-        {/* ========================= */}
         {/* ERROR */}
-        {/* ========================= */}
 
         {error && (
           <div className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm leading-5 text-red-400">
@@ -618,18 +674,14 @@ function TaskForm({
           </div>
         )}
 
-        {/* ========================= */}
         {/* FORM */}
-        {/* ========================= */}
 
         <form
           onSubmit={handleSubmit}
           className="space-y-5"
         >
 
-          {/* ========================= */}
           {/* TITLE */}
-          {/* ========================= */}
 
           <div>
 
@@ -670,9 +722,7 @@ function TaskForm({
 
           </div>
 
-          {/* ========================= */}
           {/* DESCRIPTION */}
-          {/* ========================= */}
 
           <div>
 
@@ -697,7 +747,9 @@ function TaskForm({
             </div>
 
             <textarea
-              value={description}
+              value={
+                description
+              }
               onChange={
                 handleDescriptionChange
               }
@@ -712,9 +764,7 @@ function TaskForm({
 
           </div>
 
-          {/* ========================= */}
           {/* CATEGORY + PRIORITY */}
-          {/* ========================= */}
 
           <div className="grid gap-4 sm:grid-cols-2">
 
@@ -727,7 +777,9 @@ function TaskForm({
               </label>
 
               <select
-                value={category}
+                value={
+                  category
+                }
                 onChange={(e) =>
                   setCategory(
                     e.target.value
@@ -749,10 +801,16 @@ function TaskForm({
                   categories.map(
                     (item) => (
                       <option
-                        key={item.id}
-                        value={item.name}
+                        key={
+                          item.id
+                        }
+                        value={
+                          item.name
+                        }
                       >
-                        {item.name}
+                        {
+                          item.name
+                        }
                       </option>
                     )
                   )
@@ -777,7 +835,9 @@ function TaskForm({
               </label>
 
               <select
-                value={priority}
+                value={
+                  priority
+                }
                 onChange={(e) =>
                   setPriority(
                     e.target.value
@@ -805,9 +865,7 @@ function TaskForm({
 
           </div>
 
-          {/* ========================= */}
           {/* DUE DATE */}
-          {/* ========================= */}
 
           <div>
 
@@ -824,8 +882,12 @@ function TaskForm({
 
               <input
                 type="date"
-                value={dueDate}
-                min={getTodayDate()}
+                value={
+                  dueDate
+                }
+                min={
+                  getTodayDate()
+                }
                 onChange={
                   handleDueDateChange
                 }
@@ -842,9 +904,7 @@ function TaskForm({
 
           </div>
 
-          {/* ========================= */}
           {/* RECURRENCE */}
-          {/* ========================= */}
 
           <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
 
@@ -862,7 +922,9 @@ function TaskForm({
             </div>
 
             <select
-              value={recurrenceType}
+              value={
+                recurrenceType
+              }
               onChange={
                 handleRecurrenceChange
               }
@@ -941,15 +1003,15 @@ function TaskForm({
 
           </div>
 
-          {/* ========================= */}
           {/* BUTTONS */}
-          {/* ========================= */}
 
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row">
 
             <button
               type="button"
-              onClick={onClose}
+              onClick={
+                onClose
+              }
               disabled={loading}
               className="flex-1 rounded-xl border border-slate-700 bg-slate-800 px-4 py-3 font-semibold text-slate-300 transition hover:bg-slate-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
             >

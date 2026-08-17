@@ -11,6 +11,7 @@ import {
 } from "react-icons/fi";
 
 import { supabase } from "../supabaseClient";
+import NotificationBell from "./NotificationBell";
 
 function Navbar({
   user,

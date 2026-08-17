@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../supabaseClient";
 
+import { supabase } from "../supabaseClient";
+import {
+  createNotification,
+  checkTasksForNotifications,
+} from "./notificationService";
 import TaskItem from "./TaskItem";
 import FilterBar from "./FilterBar";
 import EmptyState from "./EmptyState";
@@ -20,40 +24,61 @@ function TaskList({
   // STATES
   // =========================
 
-  const [tasks, setTasks] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [tasks, setTasks] =
+    useState([]);
 
-  const [loading, setLoading] = useState(true);
-  const [categoriesLoading, setCategoriesLoading] =
+  const [categories, setCategories] =
+    useState([]);
+
+  const [loading, setLoading] =
     useState(true);
 
-  const [statusFilter, setStatusFilter] =
-    useState("all");
+  const [
+    categoriesLoading,
+    setCategoriesLoading,
+  ] = useState(true);
 
-  const [categoryFilter, setCategoryFilter] =
-    useState("all");
+  const [
+    statusFilter,
+    setStatusFilter,
+  ] = useState("all");
 
-  const [priorityFilter, setPriorityFilter] =
-    useState("all");
+  const [
+    categoryFilter,
+    setCategoryFilter,
+  ] = useState("all");
+
+  const [
+    priorityFilter,
+    setPriorityFilter,
+  ] = useState("all");
 
   const [sortBy, setSortBy] =
     useState("newest");
 
-  const [taskToDelete, setTaskToDelete] =
-    useState(null);
+  const [
+    taskToDelete,
+    setTaskToDelete,
+  ] = useState(null);
 
-  const [deletingId, setDeletingId] =
-    useState(null);
+  const [
+    deletingId,
+    setDeletingId,
+  ] = useState(null);
 
-  const [togglingId, setTogglingId] =
-    useState(null);
+  const [
+    togglingId,
+    setTogglingId,
+  ] = useState(null);
 
   // =========================
   // SELECTED TASK
   // =========================
 
-  const [selectedTask, setSelectedTask] =
-    useState(null);
+  const [
+    selectedTask,
+    setSelectedTask,
+  ] = useState(null);
 
   // =========================
   // FETCH TASKS
@@ -68,19 +93,24 @@ function TaskList({
     setLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: false,
-        });
+      const { data, error } =
+        await supabase
+          .from("tasks")
+          .select("*")
+          .eq(
+            "user_id",
+            user.id
+          )
+          .order("created_at", {
+            ascending: false,
+          });
 
       if (error) {
         throw error;
       }
 
-      const taskData = data || [];
+      const taskData =
+        data || [];
 
       setTasks(taskData);
 
@@ -88,18 +118,39 @@ function TaskList({
         onTasksChange(taskData);
       }
 
+
+      // =========================
+      // CHECK TASK NOTIFICATIONS
+      // =========================
+
+      try {
+        await checkTasksForNotifications({
+          userId: user.id,
+          tasks: taskData,
+        });
+      } catch (notificationError) {
+        console.error(
+          "Task notification check error:",
+          notificationError
+        );
+      }
+
       // =========================
       // UPDATE STATS
       // =========================
 
       if (onStatsChange) {
-        const total = taskData.length;
+        const total =
+          taskData.length;
 
-        const completed = taskData.filter(
-          (task) => task.completed
-        ).length;
+        const completed =
+          taskData.filter(
+            (task) =>
+              task.completed
+          ).length;
 
-        const active = total - completed;
+        const active =
+          total - completed;
 
         onStatsChange({
           total,
@@ -126,44 +177,60 @@ function TaskList({
   // FETCH CATEGORIES
   // =========================
 
-  const fetchCategories = async () => {
-    if (!user?.id) {
-      setCategoriesLoading(false);
-      return;
-    }
-
-    setCategoriesLoading(true);
-
-    try {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", {
-          ascending: true,
-        });
-
-      if (error) {
-        throw error;
+  const fetchCategories =
+    async () => {
+      if (!user?.id) {
+        setCategoriesLoading(
+          false
+        );
+        return;
       }
 
-      setCategories(data || []);
-    } catch (error) {
-      console.error(
-        "Fetch categories error:",
-        error
+      setCategoriesLoading(
+        true
       );
 
-      setCategories([]);
+      try {
+        const { data, error } =
+          await supabase
+            .from("categories")
+            .select("*")
+            .eq(
+              "user_id",
+              user.id
+            )
+            .order(
+              "created_at",
+              {
+                ascending: true,
+              }
+            );
 
-      addToast?.(
-        "Failed to load categories",
-        "error"
-      );
-    } finally {
-      setCategoriesLoading(false);
-    }
-  };
+        if (error) {
+          throw error;
+        }
+
+        setCategories(
+          data || []
+        );
+      } catch (error) {
+        console.error(
+          "Fetch categories error:",
+          error
+        );
+
+        setCategories([]);
+
+        addToast?.(
+          "Failed to load categories",
+          "error"
+        );
+      } finally {
+        setCategoriesLoading(
+          false
+        );
+      }
+    };
 
   // =========================
   // LOAD DATA
@@ -172,26 +239,36 @@ function TaskList({
   useEffect(() => {
     fetchTasks();
     fetchCategories();
-  }, [user?.id, refreshKey]);
+  }, [
+    user?.id,
+    refreshKey,
+  ]);
 
   // =========================
   // OPEN TASK FROM URL
   // =========================
 
   useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
 
-    const taskId = params.get("task");
+    const taskId =
+      params.get("task");
 
-    if (!taskId || tasks.length === 0) {
+    if (
+      !taskId ||
+      tasks.length === 0
+    ) {
       return;
     }
 
-    const task = tasks.find(
-      (item) => item.id === taskId
-    );
+    const task =
+      tasks.find(
+        (item) =>
+          item.id === taskId
+      );
 
     if (task) {
       setSelectedTask(task);
@@ -202,23 +279,26 @@ function TaskList({
   // CLOSE TASK DETAILS
   // =========================
 
-  const closeTaskDetails = () => {
-    setSelectedTask(null);
+  const closeTaskDetails =
+    () => {
+      setSelectedTask(null);
 
-    const url = new URL(
-      window.location.href
-    );
+      const url = new URL(
+        window.location.href
+      );
 
-    url.searchParams.delete("task");
+      url.searchParams.delete(
+        "task"
+      );
 
-    window.history.replaceState(
-      {},
-      "",
-      url.pathname +
-        url.search +
-        url.hash
-    );
-  };
+      window.history.replaceState(
+        {},
+        "",
+        url.pathname +
+          url.search +
+          url.hash
+      );
+    };
 
   // =========================
   // GET NEXT RECURRENCE DATE
@@ -235,46 +315,73 @@ function TaskList({
       return null;
     }
 
-    const [year, month, day] =
-      dateString.split("-").map(Number);
+    const [
+      year,
+      month,
+      day,
+    ] = dateString
+      .split("-")
+      .map(Number);
 
-    if (!year || !month || !day) {
+    if (
+      !year ||
+      !month ||
+      !day
+    ) {
       return null;
     }
 
-    const currentDate = new Date(
-      Date.UTC(
-        year,
-        month - 1,
-        day
-      )
-    );
+    const currentDate =
+      new Date(
+        Date.UTC(
+          year,
+          month - 1,
+          day
+        )
+      );
 
     // DAILY
-    if (recurrenceType === "daily") {
+
+    if (
+      recurrenceType ===
+      "daily"
+    ) {
       currentDate.setUTCDate(
-        currentDate.getUTCDate() + 1
+        currentDate.getUTCDate() +
+          1
       );
     }
 
     // WEEKLY
-    if (recurrenceType === "weekly") {
+
+    if (
+      recurrenceType ===
+      "weekly"
+    ) {
       currentDate.setUTCDate(
-        currentDate.getUTCDate() + 7
+        currentDate.getUTCDate() +
+          7
       );
     }
 
     // MONTHLY
-    if (recurrenceType === "monthly") {
+
+    if (
+      recurrenceType ===
+      "monthly"
+    ) {
       const originalDay =
         currentDate.getUTCDate();
 
       const nextMonth =
-        currentDate.getUTCMonth() + 1;
+        currentDate.getUTCMonth() +
+        1;
 
       const nextYear =
         currentDate.getUTCFullYear() +
-        Math.floor(nextMonth / 12);
+        Math.floor(
+          nextMonth / 12
+        );
 
       const normalizedMonth =
         nextMonth % 12;
@@ -283,15 +390,17 @@ function TaskList({
         new Date(
           Date.UTC(
             nextYear,
-            normalizedMonth + 1,
+            normalizedMonth +
+              1,
             0
           )
         ).getUTCDate();
 
-      const safeDay = Math.min(
-        originalDay,
-        lastDayOfNextMonth
-      );
+      const safeDay =
+        Math.min(
+          originalDay,
+          lastDayOfNextMonth
+        );
 
       currentDate.setUTCFullYear(
         nextYear
@@ -309,13 +418,16 @@ function TaskList({
     const nextYear =
       currentDate.getUTCFullYear();
 
-    const nextMonth = String(
-      currentDate.getUTCMonth() + 1
-    ).padStart(2, "0");
+    const nextMonth =
+      String(
+        currentDate.getUTCMonth() +
+          1
+      ).padStart(2, "0");
 
-    const nextDay = String(
-      currentDate.getUTCDate()
-    ).padStart(2, "0");
+    const nextDay =
+      String(
+        currentDate.getUTCDate()
+      ).padStart(2, "0");
 
     return `${nextYear}-${nextMonth}-${nextDay}`;
   };
@@ -324,124 +436,82 @@ function TaskList({
   // CREATE NEXT RECURRING TASK
   // =========================
 
-  const createNextRecurringTask = async (
-    task
-  ) => {
-    if (
-      !task.recurrence_type ||
-      task.recurrence_type === "none"
-    ) {
-      return null;
-    }
+  const createNextRecurringTask =
+    async (task) => {
+      if (
+        !task.recurrence_type ||
+        task.recurrence_type ===
+          "none"
+      ) {
+        return null;
+      }
 
-    if (!task.due_date) {
-      return null;
-    }
+      if (!task.due_date) {
+        return null;
+      }
 
-    const nextDueDate =
-      getNextRecurrenceDate(
-        task.due_date,
-        task.recurrence_type
-      );
+      const nextDueDate =
+        getNextRecurrenceDate(
+          task.due_date,
+          task.recurrence_type
+        );
 
-    if (!nextDueDate) {
-      return null;
-    }
-
-    // =========================
-    // CHECK END DATE
-    // =========================
-
-    if (
-      task.recurrence_end_date &&
-      nextDueDate >
-        task.recurrence_end_date
-    ) {
-      return null;
-    }
-
-    // =========================
-    // CREATE NEXT TASK
-    // =========================
-
-    const { data, error } = await supabase
-      .from("tasks")
-      .insert([
-        {
-          user_id: user.id,
-
-          title: task.title,
-
-          description:
-            task.description || null,
-
-          completed: false,
-
-          priority:
-            task.priority || "medium",
-
-          category:
-            task.category || "General",
-
-          due_date: nextDueDate,
-
-          recurrence_type:
-            task.recurrence_type,
-
-          recurrence_end_date:
-            task.recurrence_end_date || null,
-        },
-      ])
-      .select()
-      .single();
-
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  };
-
-  // =========================
-  // TOGGLE TASK
-  // =========================
-
-  const toggleTask = async (task) => {
-    if (!user?.id) {
-      addToast?.(
-        "User session not found",
-        "error"
-      );
-
-      return;
-    }
-
-    if (togglingId === task.id) {
-      return;
-    }
-
-    setTogglingId(task.id);
-
-    try {
-      const newCompletedState =
-        !task.completed;
+      if (!nextDueDate) {
+        return null;
+      }
 
       // =========================
-      // UPDATE CURRENT TASK
+      // CHECK END DATE
+      // =========================
+
+      if (
+        task.recurrence_end_date &&
+        nextDueDate >
+          task.recurrence_end_date
+      ) {
+        return null;
+      }
+
+      // =========================
+      // CREATE NEXT TASK
       // =========================
 
       const { data, error } =
         await supabase
           .from("tasks")
-          .update({
-            completed:
-              newCompletedState,
+          .insert([
+            {
+              user_id:
+                user.id,
 
-            updated_at:
-              new Date().toISOString(),
-          })
-          .eq("id", task.id)
-          .eq("user_id", user.id)
+              title:
+                task.title,
+
+              description:
+                task.description ||
+                null,
+
+              completed: false,
+
+              priority:
+                task.priority ||
+                "medium",
+
+              category:
+                task.category ||
+                "General",
+
+              due_date:
+                nextDueDate,
+
+              recurrence_type:
+                task.recurrence_type,
+
+              recurrence_end_date:
+                task.recurrence_end_date ||
+                null,
+            },
+          ])
           .select()
           .single();
 
@@ -449,380 +519,584 @@ function TaskList({
         throw error;
       }
 
-      // =========================
-      // UPDATE UI
-      // =========================
+      return data;
+    };
 
-      setTasks((prevTasks) =>
-        prevTasks.map((item) =>
-          item.id === task.id
-            ? data
-            : item
-        )
-      );
+  // =========================
+  // TOGGLE TASK
+  // =========================
 
-      // Keep details modal updated
-      if (selectedTask?.id === task.id) {
-        setSelectedTask(data);
+  const toggleTask =
+    async (task) => {
+      if (!user?.id) {
+        addToast?.(
+          "User session not found",
+          "error"
+        );
+
+        return;
       }
 
-      // =========================
-      // TASK COMPLETED
-      // =========================
+      if (
+        togglingId ===
+        task.id
+      ) {
+        return;
+      }
 
-      if (data.completed) {
+      setTogglingId(task.id);
+
+      try {
+        const newCompletedState =
+          !task.completed;
+
         // =========================
-        // RECURRING TASK
+        // UPDATE CURRENT TASK
         // =========================
+
+        const { data, error } =
+          await supabase
+            .from("tasks")
+            .update({
+              completed:
+                newCompletedState,
+
+              updated_at:
+                new Date().toISOString(),
+            })
+            .eq(
+              "id",
+              task.id
+            )
+            .eq(
+              "user_id",
+              user.id
+            )
+            .select()
+            .single();
+
+        if (error) {
+          throw error;
+        }
+
+        // =========================
+        // UPDATE UI
+        // =========================
+
+        setTasks(
+          (prevTasks) =>
+            prevTasks.map(
+              (item) =>
+                item.id ===
+                task.id
+                  ? data
+                  : item
+            )
+        );
+
+        // Keep details modal updated
 
         if (
-          data.recurrence_type &&
-          data.recurrence_type !== "none"
+          selectedTask?.id ===
+          task.id
         ) {
-          try {
-            const nextTask =
-              await createNextRecurringTask(
-                data
+          setSelectedTask(
+            data
+          );
+        }
+
+        // =========================
+        // TASK COMPLETED
+        // =========================
+
+        if (data.completed) {
+
+          // =========================
+          // COMPLETED NOTIFICATION
+          // =========================
+
+          await createNotification({
+            userId:
+              user.id,
+
+            taskId:
+              data.id,
+
+            type:
+              "task_completed",
+
+            title:
+              "Task completed",
+
+            message:
+              `"${data.title}" has been completed.`,
+          });
+
+          // =========================
+          // RECURRING TASK
+          // =========================
+
+          if (
+            data.recurrence_type &&
+            data.recurrence_type !==
+              "none"
+          ) {
+            try {
+              const nextTask =
+                await createNextRecurringTask(
+                  data
+                );
+
+              if (nextTask) {
+                setTasks(
+                  (
+                    prevTasks
+                  ) => [
+                    nextTask,
+                    ...prevTasks,
+                  ]
+                );
+
+                addToast?.(
+                  `Task completed 🎉 Next task scheduled for ${formatDueDate(
+                    nextTask.due_date
+                  )}`,
+                  "success"
+                );
+              } else {
+                addToast?.(
+                  "Task completed 🎉 Recurrence finished.",
+                  "success"
+                );
+              }
+            } catch (
+              recurrenceError
+            ) {
+              console.error(
+                "Create recurring task error:",
+                recurrenceError
               );
 
-            if (nextTask) {
-              setTasks((prevTasks) => [
-                nextTask,
-                ...prevTasks,
-              ]);
-
               addToast?.(
-                `Task completed 🎉 Next task scheduled for ${formatDueDate(
-                  nextTask.due_date
-                )}`,
-                "success"
-              );
-            } else {
-              addToast?.(
-                "Task completed 🎉 Recurrence finished.",
-                "success"
+                "Task completed, but next recurring task could not be created.",
+                "error"
               );
             }
-          } catch (recurrenceError) {
-            console.error(
-              "Create recurring task error:",
-              recurrenceError
-            );
-
+          } else {
             addToast?.(
-              "Task completed, but next recurring task could not be created.",
-              "error"
+              "Task completed 🎉",
+              "success"
             );
           }
         } else {
           addToast?.(
-            "Task completed 🎉",
-            "success"
+            "Task marked as active",
+            "info"
           );
         }
-      } else {
+
+        await fetchTasks();
+      } catch (error) {
+        console.error(
+          "Update task error:",
+          error
+        );
+
         addToast?.(
-          "Task marked as active",
-          "info"
+          "Failed to update task",
+          "error"
+        );
+      } finally {
+        setTogglingId(
+          null
         );
       }
-
-      await fetchTasks();
-    } catch (error) {
-      console.error(
-        "Update task error:",
-        error
-      );
-
-      addToast?.(
-        "Failed to update task",
-        "error"
-      );
-    } finally {
-      setTogglingId(null);
-    }
-  };
+    };
 
   // =========================
   // DELETE CLICK
   // =========================
 
-  const handleDeleteClick = (task) => {
-    setTaskToDelete(task);
-  };
+  const handleDeleteClick =
+    (task) => {
+      setTaskToDelete(task);
+    };
 
   // =========================
   // CONFIRM DELETE
   // =========================
 
-  const handleConfirmDelete = async () => {
-    if (!taskToDelete?.id) {
-      return;
-    }
-
-    if (!user?.id) {
-      setTaskToDelete(null);
-
-      addToast?.(
-        "User session not found",
-        "error"
-      );
-
-      return;
-    }
-
-    setDeletingId(taskToDelete.id);
-
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", taskToDelete.id)
-        .eq("user_id", user.id);
-
-      if (error) {
-        throw error;
-      }
-
-      setTasks((prevTasks) =>
-        prevTasks.filter(
-          (task) =>
-            task.id !== taskToDelete.id
-        )
-      );
-
-      // Close details if deleted task is open
+  const handleConfirmDelete =
+    async () => {
       if (
-        selectedTask?.id ===
-        taskToDelete.id
+        !taskToDelete?.id
       ) {
-        closeTaskDetails();
+        return;
       }
 
-      const deletedTitle =
-        taskToDelete.title;
+      if (!user?.id) {
+        setTaskToDelete(
+          null
+        );
 
-      setTaskToDelete(null);
+        addToast?.(
+          "User session not found",
+          "error"
+        );
 
-      addToast?.(
-        `"${deletedTitle}" deleted successfully`,
-        "success"
+        return;
+      }
+
+      setDeletingId(
+        taskToDelete.id
       );
 
-      await fetchTasks();
-    } catch (error) {
-      console.error(
-        "Delete task error:",
-        error
-      );
+      try {
+        const { error } =
+          await supabase
+            .from("tasks")
+            .delete()
+            .eq(
+              "id",
+              taskToDelete.id
+            )
+            .eq(
+              "user_id",
+              user.id
+            );
 
-      addToast?.(
-        "Failed to delete task",
-        "error"
-      );
-    } finally {
-      setDeletingId(null);
-    }
-  };
+        if (error) {
+          throw error;
+        }
+
+        setTasks(
+          (prevTasks) =>
+            prevTasks.filter(
+              (task) =>
+                task.id !==
+                taskToDelete.id
+            )
+        );
+
+        // Close details if deleted
+
+        if (
+          selectedTask?.id ===
+          taskToDelete.id
+        ) {
+          closeTaskDetails();
+        }
+
+        const deletedTitle =
+          taskToDelete.title;
+
+        setTaskToDelete(
+          null
+        );
+
+        addToast?.(
+          `"${deletedTitle}" deleted successfully`,
+          "success"
+        );
+
+        await fetchTasks();
+      } catch (error) {
+        console.error(
+          "Delete task error:",
+          error
+        );
+
+        addToast?.(
+          "Failed to delete task",
+          "error"
+        );
+      } finally {
+        setDeletingId(
+          null
+        );
+      }
+    };
 
   // =========================
   // DUE DATE STATUS
   // =========================
 
-  const getDueDateStatus = (task) => {
-    if (
-      !task.due_date ||
-      task.completed
-    ) {
-      return null;
-    }
+  const getDueDateStatus =
+    (task) => {
+      if (
+        !task.due_date ||
+        task.completed
+      ) {
+        return null;
+      }
 
-    const today = new Date();
+      const today =
+        new Date();
 
-    today.setHours(0, 0, 0, 0);
+      today.setHours(
+        0,
+        0,
+        0,
+        0
+      );
 
-    const dueDate = new Date(
-      `${task.due_date}T00:00:00`
-    );
+      const dueDate =
+        new Date(
+          `${task.due_date}T00:00:00`
+        );
 
-    dueDate.setHours(0, 0, 0, 0);
+      dueDate.setHours(
+        0,
+        0,
+        0,
+        0
+      );
 
-    const diffTime =
-      dueDate.getTime() -
-      today.getTime();
+      const diffTime =
+        dueDate.getTime() -
+        today.getTime();
 
-    const diffDays = Math.round(
-      diffTime /
-        (1000 * 60 * 60 * 24)
-    );
+      const diffDays =
+        Math.round(
+          diffTime /
+            (1000 *
+              60 *
+              60 *
+              24)
+        );
 
-    if (diffDays < 0) {
+      if (diffDays < 0) {
+        return {
+          label: "Overdue",
+          className:
+            "text-red-400",
+        };
+      }
+
+      if (diffDays === 0) {
+        return {
+          label:
+            "Due Today",
+          className:
+            "text-yellow-400",
+        };
+      }
+
+      if (diffDays === 1) {
+        return {
+          label:
+            "Due Tomorrow",
+          className:
+            "text-blue-400",
+        };
+      }
+
       return {
-        label: "Overdue",
-        className: "text-red-400",
+        label:
+          "Upcoming",
+        className:
+          "text-slate-500",
       };
-    }
-
-    if (diffDays === 0) {
-      return {
-        label: "Due Today",
-        className: "text-yellow-400",
-      };
-    }
-
-    if (diffDays === 1) {
-      return {
-        label: "Due Tomorrow",
-        className: "text-blue-400",
-      };
-    }
-
-    return {
-      label: "Upcoming",
-      className: "text-slate-500",
     };
-  };
 
   // =========================
   // FORMAT DATE
   // =========================
 
-  const formatDueDate = (dateString) => {
-    if (!dateString) {
-      return "";
-    }
+  const formatDueDate =
+    (dateString) => {
+      if (!dateString) {
+        return "";
+      }
 
-    const [year, month, day] =
-      dateString.split("-");
+      const [
+        year,
+        month,
+        day,
+      ] =
+        dateString.split(
+          "-"
+        );
 
-    const date = new Date(
-      Number(year),
-      Number(month) - 1,
-      Number(day)
-    );
+      const date =
+        new Date(
+          Number(year),
+          Number(month) - 1,
+          Number(day)
+        );
 
-    return date.toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    });
-  };
+      return date.toLocaleString(
+        "en-GB",
+        {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }
+      );
+    };
 
   // =========================
   // FILTER + SORT
   // =========================
 
-  const filteredTasks = tasks
-    .filter((task) => {
-      const search =
-        searchQuery
-          .toLowerCase()
-          .trim();
+  const filteredTasks =
+    tasks
+      .filter((task) => {
+        const search =
+          searchQuery
+            .toLowerCase()
+            .trim();
 
-      const matchesSearch =
-        !search ||
-        task.title
-          ?.toLowerCase()
-          .includes(search) ||
-        task.description
-          ?.toLowerCase()
-          .includes(search) ||
-        task.category
-          ?.toLowerCase()
-          .includes(search);
+        const matchesSearch =
+          !search ||
+          task.title
+            ?.toLowerCase()
+            .includes(search) ||
+          task.description
+            ?.toLowerCase()
+            .includes(search) ||
+          task.category
+            ?.toLowerCase()
+            .includes(search);
 
-      const today = new Date();
+        const today =
+          new Date();
 
-      today.setHours(0, 0, 0, 0);
-
-      const matchesToday =
-        statusFilter === "today" &&
-        task.due_date &&
-        !task.completed &&
-        new Date(
-          `${task.due_date}T00:00:00`
-        ).getTime() ===
-          today.getTime();
-
-      const matchesOverdue =
-        statusFilter === "overdue" &&
-        task.due_date &&
-        !task.completed &&
-        new Date(
-          `${task.due_date}T00:00:00`
-        ) < today;
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "active" &&
-          !task.completed) ||
-        (statusFilter === "completed" &&
-          task.completed) ||
-        matchesToday ||
-        matchesOverdue;
-
-      const matchesCategory =
-        categoryFilter === "all" ||
-        task.category === categoryFilter;
-
-      const matchesPriority =
-        priorityFilter === "all" ||
-        task.priority === priorityFilter;
-
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesCategory &&
-        matchesPriority
-      );
-    })
-    .sort((a, b) => {
-      if (sortBy === "newest") {
-        return (
-          new Date(b.created_at) -
-          new Date(a.created_at)
+        today.setHours(
+          0,
+          0,
+          0,
+          0
         );
-      }
 
-      if (sortBy === "oldest") {
-        return (
-          new Date(a.created_at) -
-          new Date(b.created_at)
-        );
-      }
+        const matchesToday =
+          statusFilter ===
+            "today" &&
+          task.due_date &&
+          !task.completed &&
+          new Date(
+            `${task.due_date}T00:00:00`
+          ).getTime() ===
+            today.getTime();
 
-      if (sortBy === "priority") {
-        const priorityOrder = {
-          high: 1,
-          medium: 2,
-          low: 3,
-        };
+        const matchesOverdue =
+          statusFilter ===
+            "overdue" &&
+          task.due_date &&
+          !task.completed &&
+          new Date(
+            `${task.due_date}T00:00:00`
+          ) < today;
+
+        const matchesStatus =
+          statusFilter ===
+            "all" ||
+          (statusFilter ===
+            "active" &&
+            !task.completed) ||
+          (statusFilter ===
+            "completed" &&
+            task.completed) ||
+          matchesToday ||
+          matchesOverdue;
+
+        const matchesCategory =
+          categoryFilter ===
+            "all" ||
+          task.category ===
+            categoryFilter;
+
+        const matchesPriority =
+          priorityFilter ===
+            "all" ||
+          task.priority ===
+            priorityFilter;
 
         return (
-          (priorityOrder[a.priority] ||
-            99) -
-          (priorityOrder[b.priority] ||
-            99)
+          matchesSearch &&
+          matchesStatus &&
+          matchesCategory &&
+          matchesPriority
         );
-      }
-
-      if (sortBy === "dueDate") {
-        if (!a.due_date) {
-          return 1;
+      })
+      .sort((a, b) => {
+        if (
+          sortBy ===
+          "newest"
+        ) {
+          return (
+            new Date(
+              b.created_at
+            ) -
+            new Date(
+              a.created_at
+            )
+          );
         }
 
-        if (!b.due_date) {
-          return -1;
+        if (
+          sortBy ===
+          "oldest"
+        ) {
+          return (
+            new Date(
+              a.created_at
+            ) -
+            new Date(
+              b.created_at
+            )
+          );
         }
 
-        return (
-          new Date(a.due_date) -
-          new Date(b.due_date)
-        );
-      }
+        if (
+          sortBy ===
+          "priority"
+        ) {
+          const priorityOrder =
+            {
+              high: 1,
+              medium: 2,
+              low: 3,
+            };
 
-      return 0;
-    });
+          return (
+            (priorityOrder[
+              a.priority
+            ] || 99) -
+            (priorityOrder[
+              b.priority
+            ] || 99)
+          );
+        }
+
+        if (
+          sortBy ===
+          "dueDate"
+        ) {
+          if (
+            !a.due_date
+          ) {
+            return 1;
+          }
+
+          if (
+            !b.due_date
+          ) {
+            return -1;
+          }
+
+          return (
+            new Date(
+              a.due_date
+            ) -
+            new Date(
+              b.due_date
+            )
+          );
+        }
+
+        return 0;
+      });
 
   // =========================
   // LOADING
@@ -831,8 +1105,6 @@ function TaskList({
   if (loading) {
     return (
       <div className="w-full">
-
-        {/* FILTER SKELETON */}
 
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
 
@@ -844,40 +1116,40 @@ function TaskList({
 
         </div>
 
-        {/* TASK SKELETONS */}
-
         <div className="space-y-4">
 
-          {[1, 2, 3].map((item) => (
-            <div
-              key={item}
-              className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
-            >
+          {[1, 2, 3].map(
+            (item) => (
+              <div
+                key={item}
+                className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5"
+              >
 
-              <div className="flex items-start gap-4">
+                <div className="flex items-start gap-4">
 
-                <div className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-slate-800" />
+                  <div className="h-5 w-5 shrink-0 animate-pulse rounded-full bg-slate-800" />
 
-                <div className="flex-1">
+                  <div className="flex-1">
 
-                  <div className="h-4 w-2/3 animate-pulse rounded bg-slate-800" />
+                    <div className="h-4 w-2/3 animate-pulse rounded bg-slate-800" />
 
-                  <div className="mt-3 h-3 w-1/2 animate-pulse rounded bg-slate-800" />
+                    <div className="mt-3 h-3 w-1/2 animate-pulse rounded bg-slate-800" />
 
-                  <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex gap-2">
 
-                    <div className="h-6 w-16 animate-pulse rounded-lg bg-slate-800" />
+                      <div className="h-6 w-16 animate-pulse rounded-lg bg-slate-800" />
 
-                    <div className="h-6 w-20 animate-pulse rounded-lg bg-slate-800" />
+                      <div className="h-6 w-20 animate-pulse rounded-lg bg-slate-800" />
+
+                    </div>
 
                   </div>
 
                 </div>
 
               </div>
-
-            </div>
-          ))}
+            )
+          )}
 
         </div>
 
@@ -893,62 +1165,96 @@ function TaskList({
     <div className="w-full">
 
       <FilterBar
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-        categoryFilter={categoryFilter}
-        setCategoryFilter={setCategoryFilter}
-        priorityFilter={priorityFilter}
-        setPriorityFilter={setPriorityFilter}
+        statusFilter={
+          statusFilter
+        }
+        setStatusFilter={
+          setStatusFilter
+        }
+        categoryFilter={
+          categoryFilter
+        }
+        setCategoryFilter={
+          setCategoryFilter
+        }
+        priorityFilter={
+          priorityFilter
+        }
+        setPriorityFilter={
+          setPriorityFilter
+        }
         sortBy={sortBy}
         setSortBy={setSortBy}
-        categories={categories}
-        categoriesLoading={categoriesLoading}
-        taskCount={filteredTasks.length}
+        categories={
+          categories
+        }
+        categoriesLoading={
+          categoriesLoading
+        }
+        taskCount={
+          filteredTasks.length
+        }
       />
 
       {/* NO TASKS */}
 
       {tasks.length === 0 && (
-        <EmptyState type="tasks" />
+        <EmptyState
+          type="tasks"
+        />
       )}
 
       {/* SEARCH / FILTER EMPTY */}
 
       {tasks.length > 0 &&
-        filteredTasks.length === 0 && (
-          <EmptyState type="search" />
+        filteredTasks.length ===
+          0 && (
+          <EmptyState
+            type="search"
+          />
         )}
 
       {/* TASKS */}
 
-      {filteredTasks.length > 0 && (
+      {filteredTasks.length >
+        0 && (
         <div className="space-y-4">
 
-          {filteredTasks.map((task) => (
-            <TaskItem
-              key={task.id}
-              task={task}
-              onToggle={toggleTask}
-              onEdit={onEditTask}
-              onDelete={handleDeleteClick}
-              formatDueDate={formatDueDate}
-              getDueDateStatus={
-                getDueDateStatus
-              }
-            />
-          ))}
+          {filteredTasks.map(
+            (task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                onToggle={
+                  toggleTask
+                }
+                onEdit={
+                  onEditTask
+                }
+                onDelete={
+                  handleDeleteClick
+                }
+                formatDueDate={
+                  formatDueDate
+                }
+                getDueDateStatus={
+                  getDueDateStatus
+                }
+              />
+            )
+          )}
 
         </div>
       )}
 
-      {/* ========================= */}
       {/* TASK DETAILS */}
-      {/* ========================= */}
 
       {selectedTask && (
         <TaskDetails
           task={selectedTask}
-          onClose={closeTaskDetails}
+          onClose={
+            closeTaskDetails
+          }
           onEdit={(task) => {
             closeTaskDetails();
 
@@ -959,12 +1265,12 @@ function TaskList({
         />
       )}
 
-      {/* ========================= */}
       {/* CONFIRM DELETE MODAL */}
-      {/* ========================= */}
 
       <ConfirmModal
-        isOpen={Boolean(taskToDelete)}
+        isOpen={Boolean(
+          taskToDelete
+        )}
         title="Delete Task?"
         message={
           taskToDelete
@@ -977,10 +1283,14 @@ function TaskList({
           deletingId ===
           taskToDelete?.id
         }
-        onConfirm={handleConfirmDelete}
+        onConfirm={
+          handleConfirmDelete
+        }
         onCancel={() => {
           if (!deletingId) {
-            setTaskToDelete(null);
+            setTaskToDelete(
+              null
+            );
           }
         }}
       />

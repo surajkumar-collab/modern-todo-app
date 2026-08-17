@@ -1613,7 +1613,7 @@ function AppLayout({
 
             <div className="flex items-center gap-2">
 
-              <NotificationBell />
+              <NotificationBell  user={user}/>
 
               <NavLink
                 to="/profile"
