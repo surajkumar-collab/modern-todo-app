@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import {
   FiCalendar,
@@ -22,9 +26,18 @@ function CalendarView({
   // TASKS
   // =====================================================
 
-  const [tasks, setTasks] = useState([]);
+  const [tasks, setTasks] =
+    useState([]);
+
   const [tasksLoading, setTasksLoading] =
     useState(true);
+
+  // =====================================================
+  // LOCAL REFRESH
+  // =====================================================
+
+  const [calendarRefreshKey, setCalendarRefreshKey] =
+    useState(0);
 
   // =====================================================
   // CURRENT MONTH
@@ -54,66 +67,76 @@ function CalendarView({
   useEffect(() => {
     let isMounted = true;
 
-    const fetchCalendarTasks = async () => {
-      if (!user?.id) {
-        if (isMounted) {
-          setTasks([]);
-          setTasksLoading(false);
-        }
+    const fetchCalendarTasks =
+      async () => {
+        if (!user?.id) {
+          if (isMounted) {
+            setTasks([]);
+            setTasksLoading(false);
+          }
 
-        return;
-      }
-
-      if (isMounted) {
-        setTasksLoading(true);
-      }
-
-      try {
-        const {
-          data,
-          error,
-        } = await supabase
-          .from("tasks")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("due_date", {
-            ascending: true,
-          });
-
-        if (error) {
-          throw error;
+          return;
         }
 
         if (isMounted) {
-          setTasks(data || []);
+          setTasksLoading(true);
         }
-      } catch (error) {
-        console.error(
-          "Calendar tasks fetch error:",
-          error
-        );
 
-        if (isMounted) {
-          setTasks([]);
+        try {
+          const {
+            data,
+            error,
+          } = await supabase
+            .from("tasks")
+            .select("*")
+            .eq(
+              "user_id",
+              user.id
+            )
+            .order("due_date", {
+              ascending: true,
+            });
 
-          addToast?.(
-            "Failed to load calendar tasks",
-            "error"
+          if (error) {
+            throw error;
+          }
+
+          if (isMounted) {
+            setTasks(
+              data || []
+            );
+          }
+        } catch (error) {
+          console.error(
+            "Calendar tasks fetch error:",
+            error
           );
+
+          if (isMounted) {
+            setTasks([]);
+
+            addToast?.(
+              "Failed to load calendar tasks",
+              "error"
+            );
+          }
+        } finally {
+          if (isMounted) {
+            setTasksLoading(false);
+          }
         }
-      } finally {
-        if (isMounted) {
-          setTasksLoading(false);
-        }
-      }
-    };
+      };
 
     fetchCalendarTasks();
 
     return () => {
       isMounted = false;
     };
-  }, [user?.id, refreshKey]);
+  }, [
+    user?.id,
+    refreshKey,
+    calendarRefreshKey,
+  ]);
 
   // =====================================================
   // YEAR / MONTH
@@ -164,7 +187,7 @@ function CalendarView({
     ).getDate();
 
   // =====================================================
-  // FIRST DAY OF MONTH
+  // FIRST DAY
   // =====================================================
 
   const firstDayOfMonth =
@@ -178,7 +201,8 @@ function CalendarView({
   // TODAY
   // =====================================================
 
-  const today = new Date();
+  const today =
+    new Date();
 
   const todayString =
     `${today.getFullYear()}-${String(
@@ -202,7 +226,7 @@ function CalendarView({
   };
 
   // =====================================================
-  // NORMALIZE TASK DATE
+  // NORMALIZE DATE
   // =====================================================
 
   const normalizeTaskDate = (
@@ -212,11 +236,14 @@ function CalendarView({
       return null;
     }
 
-    return String(date).slice(0, 10);
+    return String(date).slice(
+      0,
+      10
+    );
   };
 
   // =====================================================
-  // GET TASKS FOR DAY
+  // TASKS FOR DAY
   // =====================================================
 
   const getTasksForDay = (
@@ -332,7 +359,6 @@ function CalendarView({
 
   const calendarCells = [];
 
-  // Empty cells before first day
   for (
     let i = 0;
     i < firstDayOfMonth;
@@ -341,7 +367,6 @@ function CalendarView({
     calendarCells.push(null);
   }
 
-  // Actual days
   for (
     let day = 1;
     day <= daysInMonth;
@@ -350,7 +375,6 @@ function CalendarView({
     calendarCells.push(day);
   }
 
-  // Keep consistent 6-row calendar
   while (
     calendarCells.length < 42
   ) {
@@ -377,7 +401,7 @@ function CalendarView({
   };
 
   // =====================================================
-  // VIEW TASK DETAILS
+  // VIEW TASK
   // =====================================================
 
   const handleViewTask = (
@@ -391,7 +415,7 @@ function CalendarView({
   };
 
   // =====================================================
-  // CLOSE TASK DETAILS
+  // CLOSE DETAILS
   // =====================================================
 
   const handleCloseDetails =
@@ -400,7 +424,7 @@ function CalendarView({
     };
 
   // =====================================================
-  // EDIT TASK FROM DETAILS
+  // EDIT FROM DETAILS
   // =====================================================
 
   const handleEditFromDetails =
@@ -413,6 +437,42 @@ function CalendarView({
 
       if (onEditTask) {
         onEditTask(task);
+      }
+    };
+
+  // =====================================================
+  // TASK CHANGED
+  // =====================================================
+
+  const handleTaskChanged =
+    (changedTask, action) => {
+      // Close details
+      setViewingTask(null);
+
+      // Refresh calendar
+      setCalendarRefreshKey(
+        (previous) =>
+          previous + 1
+      );
+
+      // Toast
+      if (action === "deleted") {
+        addToast?.(
+          "Task deleted successfully",
+          "success"
+        );
+      } else if (
+        changedTask?.completed
+      ) {
+        addToast?.(
+          "Task completed successfully",
+          "success"
+        );
+      } else {
+        addToast?.(
+          "Task marked as active",
+          "success"
+        );
       }
     };
 
@@ -452,7 +512,7 @@ function CalendarView({
       : "";
 
   // =====================================================
-  // PRIORITY CLASS
+  // PRIORITY
   // =====================================================
 
   const getPriorityClass = (
@@ -501,22 +561,24 @@ function CalendarView({
   // =====================================================
 
   const monthTaskCount =
-    tasks.filter((task) => {
-      const normalizedDate =
-        normalizeTaskDate(
-          task.due_date
+    tasks.filter(
+      (task) => {
+        const normalizedDate =
+          normalizeTaskDate(
+            task.due_date
+          );
+
+        if (!normalizedDate) {
+          return false;
+        }
+
+        return normalizedDate.startsWith(
+          `${year}-${String(
+            month + 1
+          ).padStart(2, "0")}`
         );
-
-      if (!normalizedDate) {
-        return false;
       }
-
-      return normalizedDate.startsWith(
-        `${year}-${String(
-          month + 1
-        ).padStart(2, "0")}`
-      );
-    }).length;
+    ).length;
 
   // =====================================================
   // LOADING
@@ -529,10 +591,13 @@ function CalendarView({
         <div className="flex items-center gap-4">
 
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-            <FiCalendar size={23} />
+            <FiCalendar
+              size={23}
+            />
           </div>
 
           <div>
+
             <h3 className="text-xl font-bold text-white">
               Calendar
             </h3>
@@ -540,6 +605,7 @@ function CalendarView({
             <p className="mt-1 text-sm text-slate-500">
               Loading your tasks...
             </p>
+
           </div>
 
         </div>
@@ -548,12 +614,14 @@ function CalendarView({
 
           {Array.from({
             length: 35,
-          }).map((_, index) => (
-            <div
-              key={index}
-              className="min-h-[90px] bg-slate-950/80"
-            />
-          ))}
+          }).map(
+            (_, index) => (
+              <div
+                key={index}
+                className="min-h-[90px] bg-slate-950/80"
+              />
+            )
+          )}
 
         </div>
 
@@ -568,16 +636,16 @@ function CalendarView({
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5 sm:p-6">
 
-      {/* ================================================= */}
       {/* HEADER */}
-      {/* ================================================= */}
 
       <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
         <div className="flex items-center gap-4">
 
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-            <FiCalendar size={23} />
+            <FiCalendar
+              size={23}
+            />
           </div>
 
           <div>
@@ -613,7 +681,9 @@ function CalendarView({
 
           <button
             type="button"
-            onClick={goToToday}
+            onClick={
+              goToToday
+            }
             className="h-11 rounded-xl border border-slate-800 bg-slate-900 px-5 text-sm font-semibold text-white transition hover:border-blue-500/40 hover:bg-slate-800"
           >
             Today
@@ -636,9 +706,7 @@ function CalendarView({
 
       </div>
 
-      {/* ================================================= */}
       {/* MONTH */}
-      {/* ================================================= */}
 
       <div className="mb-5 text-center">
 
@@ -660,9 +728,7 @@ function CalendarView({
 
       </div>
 
-      {/* ================================================= */}
       {/* WEEK DAYS */}
-      {/* ================================================= */}
 
       <div className="mb-2 grid grid-cols-7">
 
@@ -679,9 +745,7 @@ function CalendarView({
 
       </div>
 
-      {/* ================================================= */}
-      {/* CALENDAR GRID */}
-      {/* ================================================= */}
+      {/* CALENDAR */}
 
       <div className="overflow-x-auto rounded-2xl border border-slate-800">
 
@@ -734,7 +798,7 @@ function CalendarView({
                     }`}
                   >
 
-                    {/* DAY NUMBER */}
+                    {/* DAY */}
 
                     {day && (
                       <div className="flex items-center justify-between">
@@ -763,7 +827,7 @@ function CalendarView({
                       </div>
                     )}
 
-                    {/* TASK PREVIEWS */}
+                    {/* TASK CHIPS */}
 
                     {day &&
                       dayTasks.length >
@@ -842,13 +906,11 @@ function CalendarView({
       </div>
 
       {/* ================================================= */}
-      {/* SELECTED DATE DETAILS */}
+      {/* SELECTED DATE */}
       {/* ================================================= */}
 
       {selectedDate && (
         <div className="mt-6">
-
-          {/* HEADER */}
 
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 
@@ -938,8 +1000,6 @@ function CalendarView({
 
                       <div className="flex items-start gap-3">
 
-                        {/* STATUS DOT */}
-
                         <div
                           className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${
                             task.completed
@@ -953,8 +1013,6 @@ function CalendarView({
                               : "bg-blue-400"
                           }`}
                         />
-
-                        {/* CONTENT */}
 
                         <div className="min-w-0 flex-1">
 
@@ -972,8 +1030,6 @@ function CalendarView({
                               }
                             </h5>
 
-                            {/* PRIORITY */}
-
                             <span
                               className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold capitalize ${getPriorityClass(
                                 priority
@@ -984,8 +1040,6 @@ function CalendarView({
                               }
                             </span>
 
-                            {/* CATEGORY */}
-
                             {task.category && (
                               <span className="rounded-full bg-blue-500/10 px-2.5 py-1 text-[10px] font-medium text-blue-400">
                                 {
@@ -993,8 +1047,6 @@ function CalendarView({
                                 }
                               </span>
                             )}
-
-                            {/* RECURRENCE */}
 
                             {task.recurrence_type &&
                               task.recurrence_type !==
@@ -1009,8 +1061,6 @@ function CalendarView({
 
                           </div>
 
-                          {/* DESCRIPTION */}
-
                           {task.description && (
                             <p className="mt-2 text-sm text-slate-500">
                               {
@@ -1018,8 +1068,6 @@ function CalendarView({
                               }
                             </p>
                           )}
-
-                          {/* DUE DATE */}
 
                           <div className="mt-3 flex items-center gap-2 text-xs text-slate-600">
 
@@ -1035,8 +1083,6 @@ function CalendarView({
                             </span>
 
                           </div>
-
-                          {/* REPEAT UNTIL */}
 
                           {task.recurrence_end_date && (
                             <p className="mt-1 text-xs text-slate-600">
@@ -1089,17 +1135,22 @@ function CalendarView({
       )}
 
       {/* ================================================= */}
-      {/* TASK DETAILS MODAL */}
+      {/* TASK DETAILS */}
       {/* ================================================= */}
 
       {viewingTask && (
         <TaskDetails
-          task={viewingTask}
+          task={
+            viewingTask
+          }
           onClose={
             handleCloseDetails
           }
           onEdit={
             handleEditFromDetails
+          }
+          onTaskChanged={
+            handleTaskChanged
           }
         />
       )}
