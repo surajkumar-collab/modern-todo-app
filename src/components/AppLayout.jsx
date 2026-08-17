@@ -1,5 +1,13 @@
-import { useEffect, useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+
+import {
+  NavLink,
+  Outlet,
+} from "react-router-dom";
 
 import {
   FiHome,
@@ -10,12 +18,34 @@ import {
   FiLogOut,
   FiChevronRight,
   FiLayers,
+  FiBell,
+  FiCheck,
+  FiClock,
+  FiAlertCircle,
+  FiX,
 } from "react-icons/fi";
 
 import { supabase } from "../supabaseClient";
 
-function AppLayout({ user, onLogout }) {
-  const [profile, setProfile] = useState(null);
+function AppLayout({
+  user,
+  onLogout,
+}) {
+  const [profile, setProfile] =
+    useState(null);
+
+  // =========================================================
+  // NOTIFICATIONS
+  // =========================================================
+
+  const [notifications, setNotifications] =
+    useState([]);
+
+  const [notificationOpen, setNotificationOpen] =
+    useState(false);
+
+  const notificationRef =
+    useRef(null);
 
   // =========================================================
   // NAVIGATION
@@ -130,13 +160,16 @@ function AppLayout({ user, onLogout }) {
   const email =
     user?.email || "";
 
-  const avatarUrl = profile?.avatar_url
-    ? `${profile.avatar_url}${
-        profile.avatar_url.includes("?")
-          ? "&"
-          : "?"
-      }t=${Date.now()}`
-    : null;
+  const avatarUrl =
+    profile?.avatar_url
+      ? `${profile.avatar_url}${
+          profile.avatar_url.includes(
+            "?"
+          )
+            ? "&"
+            : "?"
+        }t=${Date.now()}`
+      : null;
 
   const avatarInitial =
     displayName
@@ -144,17 +177,574 @@ function AppLayout({ user, onLogout }) {
       .toUpperCase();
 
   // =========================================================
+  // NOTIFICATION HELPERS
+  // =========================================================
+
+  const getStartOfDay = (
+    date
+  ) => {
+    const result =
+      new Date(date);
+
+    result.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    return result;
+  };
+
+  const getValidDate = (
+    value
+  ) => {
+    if (!value) {
+      return null;
+    }
+
+    const date =
+      new Date(value);
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return null;
+    }
+
+    return date;
+  };
+
+  const getDueDate = (
+    value
+  ) => {
+    if (!value) {
+      return null;
+    }
+
+    const date =
+      new Date(
+        `${value}T00:00:00`
+      );
+
+    if (
+      Number.isNaN(
+        date.getTime()
+      )
+    ) {
+      return null;
+    }
+
+    date.setHours(
+      0,
+      0,
+      0,
+      0
+    );
+
+    return date;
+  };
+
+  const formatDueDate = (
+    date
+  ) => {
+    if (!date) {
+      return "";
+    }
+
+    return date.toLocaleDateString(
+      "en-US",
+      {
+        month: "short",
+        day: "numeric",
+      }
+    );
+  };
+
+  // =========================================================
+  // BUILD NOTIFICATIONS
+  // =========================================================
+
+  const buildNotifications = (
+    tasks
+  ) => {
+    if (
+      !Array.isArray(tasks)
+    ) {
+      return [];
+    }
+
+    const now =
+      new Date();
+
+    const today =
+      getStartOfDay(now);
+
+    const tomorrow =
+      new Date(today);
+
+    tomorrow.setDate(
+      tomorrow.getDate() +
+        1
+    );
+
+    const upcomingLimit =
+      new Date(now);
+
+    upcomingLimit.setHours(
+      upcomingLimit.getHours() +
+        48
+    );
+
+    const result = [];
+
+    tasks.forEach(
+      (task) => {
+        if (!task?.id) {
+          return;
+        }
+
+        const title =
+          task.title ||
+          task.name ||
+          "Untitled task";
+
+        // ===================================================
+        // OVERDUE
+        // ===================================================
+
+        if (
+          !task.completed &&
+          task.due_date
+        ) {
+          const dueDate =
+            getDueDate(
+              task.due_date
+            );
+
+          if (
+            dueDate &&
+            dueDate < today
+          ) {
+            result.push({
+              id: `overdue-${task.id}`,
+              taskId: task.id,
+              type: "overdue",
+              title:
+                "Task overdue",
+              message: title,
+              meta: `Due ${formatDueDate(
+                dueDate
+              )}`,
+              icon: FiAlertCircle,
+              iconClass:
+                "bg-red-500/10 text-red-400",
+              createdAt:
+                dueDate.getTime(),
+            });
+
+            return;
+          }
+        }
+
+        // ===================================================
+        // DUE TODAY
+        // ===================================================
+
+        if (
+          !task.completed &&
+          task.due_date
+        ) {
+          const dueDate =
+            getDueDate(
+              task.due_date
+            );
+
+          if (
+            dueDate &&
+            dueDate.getTime() ===
+              today.getTime()
+          ) {
+            result.push({
+              id: `today-${task.id}`,
+              taskId: task.id,
+              type: "today",
+              title:
+                "Task due today",
+              message: title,
+              meta: "Due today",
+              icon: FiClock,
+              iconClass:
+                "bg-yellow-500/10 text-yellow-400",
+              createdAt:
+                now.getTime(),
+            });
+
+            return;
+          }
+        }
+
+        // ===================================================
+        // UPCOMING
+        // ===================================================
+
+        if (
+          !task.completed &&
+          task.due_date
+        ) {
+          const dueDate =
+            getDueDate(
+              task.due_date
+            );
+
+          if (
+            dueDate &&
+            dueDate > today &&
+            dueDate <=
+              upcomingLimit
+          ) {
+            result.push({
+              id: `upcoming-${task.id}`,
+              taskId: task.id,
+              type: "upcoming",
+              title:
+                "Upcoming task",
+              message: title,
+              meta: `Due ${formatDueDate(
+                dueDate
+              )}`,
+              icon: FiClock,
+              iconClass:
+                "bg-blue-500/10 text-blue-400",
+              createdAt:
+                dueDate.getTime(),
+            });
+
+            return;
+          }
+        }
+
+        // ===================================================
+        // RECENTLY COMPLETED
+        // ===================================================
+
+        if (
+          task.completed
+        ) {
+          const updatedAt =
+            getValidDate(
+              task.updated_at
+            );
+
+          if (
+            updatedAt
+          ) {
+            const fortyEightHours =
+              48 *
+              60 *
+              60 *
+              1000;
+
+            const age =
+              now.getTime() -
+              updatedAt.getTime();
+
+            if (
+              age >= 0 &&
+              age <=
+                fortyEightHours
+            ) {
+              result.push({
+                id: `completed-${task.id}-${updatedAt.getTime()}`,
+                taskId: task.id,
+                type: "completed",
+                title:
+                  "Task completed",
+                message: title,
+                meta: "Completed recently",
+                icon: FiCheck,
+                iconClass:
+                  "bg-green-500/10 text-green-400",
+                createdAt:
+                  updatedAt.getTime(),
+              });
+            }
+          }
+        }
+      }
+    );
+
+    // ===================================================
+    // SORT
+    // ===================================================
+
+    return result
+      .sort(
+        (a, b) =>
+          b.createdAt -
+          a.createdAt
+      )
+      .slice(0, 20);
+  };
+
+  // =========================================================
+  // FETCH TASKS FOR NOTIFICATIONS
+  // =========================================================
+
+  async function fetchNotifications() {
+    if (!user?.id) {
+      setNotifications([]);
+      return;
+    }
+
+    try {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("tasks")
+        .select(
+          "id, title, completed, due_date, updated_at"
+        )
+        .eq(
+          "user_id",
+          user.id
+        );
+
+      if (error) {
+        console.error(
+          "Notification task fetch error:",
+          error
+        );
+
+        return;
+      }
+
+      const generated =
+        buildNotifications(
+          data || []
+        );
+
+      const storageKey =
+        `taskflow-read-notifications-${user.id}`;
+
+      let readIds = [];
+
+      try {
+        const stored =
+          localStorage.getItem(
+            storageKey
+          );
+
+        readIds = stored
+          ? JSON.parse(
+              stored
+            )
+          : [];
+      } catch {
+        readIds = [];
+      }
+
+      const withReadState =
+        generated.map(
+          (notification) => ({
+            ...notification,
+            read:
+              readIds.includes(
+                notification.id
+              ),
+          })
+        );
+
+      setNotifications(
+        withReadState
+      );
+    } catch (error) {
+      console.error(
+        "Notification fetch error:",
+        error
+      );
+    }
+  }
+
+  // =========================================================
+  // LOAD NOTIFICATIONS
+  // =========================================================
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [user?.id]);
+
+  // =========================================================
+  // REFRESH NOTIFICATIONS
+  // =========================================================
+
+  useEffect(() => {
+    const refresh =
+      () => {
+        fetchNotifications();
+      };
+
+    window.addEventListener(
+      "taskflow-notifications-refresh",
+      refresh
+    );
+
+    return () => {
+      window.removeEventListener(
+        "taskflow-notifications-refresh",
+        refresh
+      );
+    };
+  }, [user?.id]);
+
+  // =========================================================
+  // OUTSIDE CLICK
+  // =========================================================
+
+  useEffect(() => {
+    const handleOutsideClick = (
+      event
+    ) => {
+      if (
+        notificationRef.current &&
+        !notificationRef.current.contains(
+          event.target
+        )
+      ) {
+        setNotificationOpen(
+          false
+        );
+      }
+    };
+
+    if (
+      notificationOpen
+    ) {
+      document.addEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+    }
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleOutsideClick
+      );
+    };
+  }, [
+    notificationOpen,
+  ]);
+
+  // =========================================================
+  // UNREAD COUNT
+  // =========================================================
+
+  const unreadCount =
+    notifications.filter(
+      (notification) =>
+        !notification.read
+    ).length;
+
+  // =========================================================
+  // SAVE READ IDS
+  // =========================================================
+
+  const saveReadIds = (
+    ids
+  ) => {
+    if (!user?.id) {
+      return;
+    }
+
+    localStorage.setItem(
+      `taskflow-read-notifications-${user.id}`,
+      JSON.stringify(ids)
+    );
+  };
+
+  // =========================================================
+  // MARK ONE READ
+  // =========================================================
+
+  const markNotificationRead = (
+    notificationId
+  ) => {
+    setNotifications(
+      (previous) =>
+        previous.map(
+          (notification) =>
+            notification.id ===
+            notificationId
+              ? {
+                  ...notification,
+                  read: true,
+                }
+              : notification
+        )
+    );
+
+    const currentReadIds =
+      notifications
+        .filter(
+          (notification) =>
+            notification.read ||
+            notification.id ===
+              notificationId
+        )
+        .map(
+          (notification) =>
+            notification.id
+        );
+
+    saveReadIds(
+      currentReadIds
+    );
+  };
+
+  // =========================================================
+  // MARK ALL READ
+  // =========================================================
+
+  const markAllNotificationsRead =
+    () => {
+      setNotifications(
+        (previous) =>
+          previous.map(
+            (notification) => ({
+              ...notification,
+              read: true,
+            })
+          )
+      );
+
+      saveReadIds(
+        notifications.map(
+          (notification) =>
+            notification.id
+        )
+      );
+    };
+
+  // =========================================================
   // NAV ITEM
   // =========================================================
 
-  const renderNavItem = (item) => {
+  const renderNavItem = (
+    item
+  ) => {
     const Icon = item.icon;
 
     return (
       <NavLink
         key={item.path}
         to={item.path}
-        className={({ isActive }) =>
+        className={({
+          isActive,
+        }) =>
           `
           group relative flex items-center gap-3
           overflow-hidden rounded-xl
@@ -169,12 +759,10 @@ function AppLayout({ user, onLogout }) {
           `
         }
       >
-        {({ isActive }) => (
+        {({
+          isActive,
+        }) => (
           <>
-            {/* ========================================= */}
-            {/* ACTIVE LEFT INDICATOR */}
-            {/* ========================================= */}
-
             {isActive && (
               <span
                 className="
@@ -186,10 +774,6 @@ function AppLayout({ user, onLogout }) {
                 "
               />
             )}
-
-            {/* ========================================= */}
-            {/* ICON */}
-            {/* ========================================= */}
 
             <span
               className={`
@@ -205,17 +789,9 @@ function AppLayout({ user, onLogout }) {
               <Icon size={19} />
             </span>
 
-            {/* ========================================= */}
-            {/* TEXT */}
-            {/* ========================================= */}
-
             <span className="relative z-10 flex-1">
               {item.name}
             </span>
-
-            {/* ========================================= */}
-            {/* CHEVRON */}
-            {/* ========================================= */}
 
             <FiChevronRight
               size={14}
@@ -229,10 +805,6 @@ function AppLayout({ user, onLogout }) {
                 }
               `}
             />
-
-            {/* ========================================= */}
-            {/* HOVER GLOW */}
-            {/* ========================================= */}
 
             {!isActive && (
               <span
@@ -254,6 +826,299 @@ function AppLayout({ user, onLogout }) {
       </NavLink>
     );
   };
+
+  // =========================================================
+  // NOTIFICATION BELL
+  // =========================================================
+
+  const NotificationBell =
+    () => (
+      <div
+        ref={
+          notificationRef
+        }
+        className="relative"
+      >
+
+        <button
+          type="button"
+          onClick={() =>
+            setNotificationOpen(
+              (previous) =>
+                !previous
+            )
+          }
+          aria-label="Notifications"
+          className="
+            relative flex h-10 w-10
+            items-center justify-center
+            rounded-xl
+            border border-slate-800
+            bg-slate-900/80
+            text-slate-500
+            transition-all duration-200
+            hover:border-slate-700
+            hover:bg-slate-900
+            hover:text-blue-400
+            hover:shadow-lg
+            hover:shadow-blue-500/5
+          "
+        >
+
+          <FiBell
+            size={19}
+            className={
+              unreadCount > 0
+                ? "animate-[pulse_2s_ease-in-out_infinite]"
+                : ""
+            }
+          />
+
+          {unreadCount > 0 && (
+            <span
+              className="
+                absolute -right-1 -top-1
+                flex h-5 min-w-5
+                items-center justify-center
+                rounded-full
+                border-2 border-slate-950
+                bg-red-500
+                px-1
+                text-[9px]
+                font-bold
+                text-white
+                shadow-lg
+                shadow-red-500/20
+              "
+            >
+              {unreadCount >
+              9
+                ? "9+"
+                : unreadCount}
+            </span>
+          )}
+
+        </button>
+
+        {/* ================================================= */}
+        {/* DROPDOWN */}
+        {/* ================================================= */}
+
+        {notificationOpen && (
+          <div
+            className="
+              absolute right-0 top-12
+              z-[100]
+              w-[360px]
+              max-w-[calc(100vw-2rem)]
+              overflow-hidden
+              rounded-2xl
+              border border-slate-800
+              bg-[#080d1c]
+              shadow-2xl
+              shadow-black/40
+            "
+          >
+
+            {/* HEADER */}
+
+            <div
+              className="
+                flex items-center
+                justify-between
+                border-b border-slate-800
+                px-4 py-4
+              "
+            >
+
+              <div>
+
+                <h3 className="text-sm font-bold text-white">
+                  Notifications
+                </h3>
+
+                <p className="mt-0.5 text-[11px] text-slate-600">
+                  {unreadCount > 0
+                    ? `${unreadCount} unread`
+                    : "You're all caught up"}
+                </p>
+
+              </div>
+
+              <div className="flex items-center gap-1">
+
+                {unreadCount >
+                  0 && (
+                  <button
+                    type="button"
+                    onClick={
+                      markAllNotificationsRead
+                    }
+                    className="
+                      rounded-lg
+                      px-2.5 py-1.5
+                      text-[10px]
+                      font-semibold
+                      text-blue-400
+                      transition
+                      hover:bg-blue-500/10
+                    "
+                  >
+                    Mark all read
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setNotificationOpen(
+                      false
+                    )
+                  }
+                  className="
+                    flex h-7 w-7
+                    items-center justify-center
+                    rounded-lg
+                    text-slate-600
+                    transition
+                    hover:bg-slate-800
+                    hover:text-slate-300
+                  "
+                >
+                  <FiX size={15} />
+                </button>
+
+              </div>
+
+            </div>
+
+            {/* BODY */}
+
+            {notifications.length ===
+            0 ? (
+              <div className="px-6 py-12 text-center">
+
+                <div
+                  className="
+                    mx-auto flex h-12 w-12
+                    items-center justify-center
+                    rounded-2xl
+                    bg-slate-900
+                    text-slate-600
+                  "
+                >
+                  <FiBell size={21} />
+                </div>
+
+                <p className="mt-4 text-sm font-semibold text-slate-400">
+                  No notifications
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-slate-600">
+                  You're all caught up.
+                  We'll show important task updates here.
+                </p>
+
+              </div>
+            ) : (
+              <div className="max-h-[430px] overflow-y-auto">
+
+                {notifications.map(
+                  (
+                    notification
+                  ) => {
+                    const Icon =
+                      notification.icon;
+
+                    return (
+                      <button
+                        key={
+                          notification.id
+                        }
+                        type="button"
+                        onClick={() =>
+                          markNotificationRead(
+                            notification.id
+                          )
+                        }
+                        className={`
+                          group flex w-full
+                          gap-3
+                          border-b border-slate-800/70
+                          px-4 py-4
+                          text-left
+                          transition
+                          hover:bg-slate-900/80
+                          ${
+                            notification.read
+                              ? "opacity-60"
+                              : "bg-slate-900/20"
+                          }
+                        `}
+                      >
+
+                        {/* ICON */}
+
+                        <div
+                          className={`
+                            flex h-9 w-9
+                            shrink-0
+                            items-center
+                            justify-center
+                            rounded-xl
+                            ${notification.iconClass}
+                          `}
+                        >
+                          <Icon
+                            size={16}
+                          />
+                        </div>
+
+                        {/* CONTENT */}
+
+                        <div className="min-w-0 flex-1">
+
+                          <div className="flex items-start justify-between gap-2">
+
+                            <p className="text-xs font-semibold text-slate-200">
+                              {
+                                notification.title
+                              }
+                            </p>
+
+                            {!notification.read && (
+                              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+                            )}
+
+                          </div>
+
+                          <p className="mt-1 truncate text-xs text-slate-500">
+                            {
+                              notification.message
+                            }
+                          </p>
+
+                          <p className="mt-1.5 text-[10px] text-slate-700">
+                            {
+                              notification.meta
+                            }
+                          </p>
+
+                        </div>
+
+                      </button>
+                    );
+                  }
+                )}
+
+              </div>
+            )}
+
+          </div>
+        )}
+
+      </div>
+    );
 
   // =========================================================
   // LAYOUT
@@ -278,9 +1143,7 @@ function AppLayout({ user, onLogout }) {
           "
         >
 
-          {/* ================================================= */}
           {/* BRAND */}
-          {/* ================================================= */}
 
           <div
             className="
@@ -291,13 +1154,7 @@ function AppLayout({ user, onLogout }) {
             "
           >
 
-            <div
-              className="
-                group flex items-center gap-3
-              "
-            >
-
-              {/* LOGO */}
+            <div className="group flex items-center gap-3">
 
               <div
                 className="
@@ -328,9 +1185,7 @@ function AppLayout({ user, onLogout }) {
 
                 <span
                   className="
-                    absolute
-                    -right-0.5
-                    -top-0.5
+                    absolute -right-0.5 -top-0.5
                     h-2 w-2
                     rounded-full
                     bg-cyan-400
@@ -340,8 +1195,6 @@ function AppLayout({ user, onLogout }) {
                 />
 
               </div>
-
-              {/* BRAND TEXT */}
 
               <div>
 
@@ -371,9 +1224,7 @@ function AppLayout({ user, onLogout }) {
 
           </div>
 
-          {/* ================================================= */}
           {/* SIDEBAR CONTENT */}
-          {/* ================================================= */}
 
           <div
             className="
@@ -382,10 +1233,6 @@ function AppLayout({ user, onLogout }) {
               px-4 py-6
             "
           >
-
-            {/* ================================================= */}
-            {/* WORKSPACE */}
-            {/* ================================================= */}
 
             <div>
 
@@ -410,15 +1257,7 @@ function AppLayout({ user, onLogout }) {
 
             </div>
 
-            {/* ================================================= */}
-            {/* DIVIDER */}
-            {/* ================================================= */}
-
             <div className="my-6 border-t border-slate-800/70" />
-
-            {/* ================================================= */}
-            {/* MANAGEMENT */}
-            {/* ================================================= */}
 
             <div>
 
@@ -443,15 +1282,9 @@ function AppLayout({ user, onLogout }) {
 
             </div>
 
-            {/* ================================================= */}
-            {/* SPACER */}
-            {/* ================================================= */}
-
             <div className="flex-1" />
 
-            {/* ================================================= */}
-            {/* PROFILE CARD */}
-            {/* ================================================= */}
+            {/* PROFILE */}
 
             <NavLink
               to="/profile"
@@ -471,8 +1304,6 @@ function AppLayout({ user, onLogout }) {
               "
             >
 
-              {/* PROFILE HOVER GLOW */}
-
               <span
                 className="
                   pointer-events-none
@@ -488,8 +1319,6 @@ function AppLayout({ user, onLogout }) {
               />
 
               <div className="relative flex items-center gap-3">
-
-                {/* AVATAR */}
 
                 <div
                   className="
@@ -516,7 +1345,9 @@ function AppLayout({ user, onLogout }) {
                       src={avatarUrl}
                       alt={displayName}
                       className="h-full w-full object-cover"
-                      onError={(event) => {
+                      onError={(
+                        event
+                      ) => {
                         event.currentTarget.style.display =
                           "none";
                       }}
@@ -526,8 +1357,6 @@ function AppLayout({ user, onLogout }) {
                   )}
 
                 </div>
-
-                {/* USER */}
 
                 <div className="min-w-0 flex-1">
 
@@ -557,8 +1386,6 @@ function AppLayout({ user, onLogout }) {
 
                 </div>
 
-                {/* CHEVRON */}
-
                 <FiChevronRight
                   size={15}
                   className="
@@ -575,9 +1402,7 @@ function AppLayout({ user, onLogout }) {
 
             </NavLink>
 
-            {/* ================================================= */}
             {/* LOGOUT */}
-            {/* ================================================= */}
 
             <button
               type="button"
@@ -620,7 +1445,7 @@ function AppLayout({ user, onLogout }) {
         </aside>
 
         {/* ================================================= */}
-        {/* MAIN CONTENT */}
+        {/* MAIN */}
         {/* ================================================= */}
 
         <main
@@ -629,6 +1454,121 @@ function AppLayout({ user, onLogout }) {
             lg:ml-[250px]
           "
         >
+
+          {/* ================================================= */}
+          {/* DESKTOP TOP BAR */}
+          {/* ================================================= */}
+
+          <header
+            className="
+              sticky top-0 z-40
+              hidden h-[84px]
+              items-center
+              border-b border-slate-800/70
+              bg-slate-950/85
+              px-10
+              backdrop-blur-xl
+              lg:flex
+            "
+          >
+            {/* LEFT — BRAND */}
+
+            <div className="flex shrink-0 items-center">
+              <h1 className="text-2xl font-bold tracking-tight text-white">
+                Task
+                <span className="text-cyan-400">
+                  Flow
+                </span>
+              </h1>
+            </div>
+
+            {/* CENTER — SEARCH */}
+
+            <div className="mx-auto w-full max-w-[500px]">
+              <div
+                className="
+                  flex h-12
+                  items-center gap-3
+                  rounded-xl
+                  border border-slate-800
+                  bg-slate-900/70
+                  px-4
+                  transition-all
+                  focus-within:border-blue-500/40
+                  focus-within:ring-2
+                  focus-within:ring-blue-500/10
+                "
+              >
+                <svg
+                  className="h-5 w-5 text-slate-500"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    cx="11"
+                    cy="11"
+                    r="7"
+                  />
+
+                  <path
+                    d="m20 20-3.5-3.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+
+                <input
+                  type="text"
+                  placeholder="Search tasks..."
+                  className="
+                    w-full
+                    bg-transparent
+                    text-sm
+                    text-white
+                    outline-none
+                    placeholder:text-slate-600
+                  "
+                />
+              </div>
+            </div>
+
+            {/* RIGHT */}
+
+            <div className="flex shrink-0 items-center gap-4">
+
+              <NotificationBell />
+
+              <NavLink
+                to="/profile"
+                className="
+                  flex h-10 w-10
+                  items-center justify-center
+                  overflow-hidden
+                  rounded-full
+                  border border-slate-700
+                  bg-blue-500/10
+                  text-sm font-bold
+                  text-blue-400
+                  transition-all
+                  hover:border-blue-400/40
+                  hover:shadow-lg
+                  hover:shadow-blue-500/10
+                "
+              >
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  avatarInitial
+                )}
+              </NavLink>
+
+            </div>
+          </header>
 
           {/* ================================================= */}
           {/* MOBILE HEADER */}
@@ -647,8 +1587,6 @@ function AppLayout({ user, onLogout }) {
               lg:hidden
             "
           >
-
-            {/* MOBILE BRAND */}
 
             <div className="flex items-center gap-3">
 
@@ -673,43 +1611,45 @@ function AppLayout({ user, onLogout }) {
 
             </div>
 
-            {/* MOBILE PROFILE */}
+            <div className="flex items-center gap-2">
 
-            <NavLink
-              to="/profile"
-              className="
-                flex h-9 w-9
-                items-center justify-center
-                overflow-hidden
-                rounded-full
-                border border-slate-700
-                bg-blue-500/10
-                text-sm font-bold
-                text-blue-400
-                transition-all
-                hover:border-blue-400/40
-                hover:shadow-lg
-                hover:shadow-blue-500/10
-              "
-            >
+              <NotificationBell />
 
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={displayName}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                avatarInitial
-              )}
+              <NavLink
+                to="/profile"
+                className="
+                  flex h-9 w-9
+                  items-center justify-center
+                  overflow-hidden
+                  rounded-full
+                  border border-slate-700
+                  bg-blue-500/10
+                  text-sm font-bold
+                  text-blue-400
+                  transition-all
+                  hover:border-blue-400/40
+                  hover:shadow-lg
+                  hover:shadow-blue-500/10
+                "
+              >
 
-            </NavLink>
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  avatarInitial
+                )}
+
+              </NavLink>
+
+            </div>
 
           </div>
 
-          {/* ================================================= */}
-          {/* PAGE CONTENT */}
-          {/* ================================================= */}
+          {/* PAGE */}
 
           <div className="min-w-0">
             <Outlet />
