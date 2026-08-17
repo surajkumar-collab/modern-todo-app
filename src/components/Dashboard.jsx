@@ -49,6 +49,9 @@ function Dashboard({ user, onLogout }) {
   const [searchQuery, setSearchQuery] =
     useState("");
 
+  const [productivityRange, setProductivityRange] =
+    useState("7d");
+
   const [tasks, setTasks] =
     useState([]);
 
@@ -353,77 +356,133 @@ function Dashboard({ user, onLogout }) {
       ).length;
 
     // ---------------------------------------------
-    // WEEKLY DATA
+    // PRODUCTIVITY CHART DATA
     // ---------------------------------------------
 
+    const getCompletedCountForDate = (dateString) =>
+      completedTasks.filter((task) => {
+        if (!task.updated_at) return false;
+
+        return (
+          getDateString(new Date(task.updated_at)) ===
+          dateString
+        );
+      }).length;
+
+    const getMonthKey = (date) =>
+      `${date.getFullYear()}-${String(
+        date.getMonth() + 1
+      ).padStart(2, "0")}`;
+
+    let productivityData = [];
+
+    if (productivityRange === "1d") {
+      productivityData = [
+        {
+          date: todayString,
+          label: "Today",
+          count: getCompletedCountForDate(todayString),
+        },
+      ];
+    } else if (productivityRange === "7d") {
+      for (let index = 6; index >= 0; index--) {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - index);
+
+        const dateString = getDateString(date);
+
+        productivityData.push({
+          date: dateString,
+          label: date.toLocaleDateString("en-IN", {
+            weekday: "short",
+          }),
+          count: getCompletedCountForDate(dateString),
+        });
+      }
+    } else if (productivityRange === "30d") {
+      for (let index = 29; index >= 0; index--) {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        date.setDate(date.getDate() - index);
+
+        const dateString = getDateString(date);
+
+        productivityData.push({
+          date: dateString,
+          label:
+            index === 29 || index === 15 || index === 0
+              ? date.toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                })
+              : "",
+          count: getCompletedCountForDate(dateString),
+        });
+      }
+    } else {
+      const months =
+        productivityRange === "3m"
+          ? 3
+          : productivityRange === "6m"
+          ? 6
+          : 12;
+
+      for (let index = months - 1; index >= 0; index--) {
+        const date = new Date();
+        date.setDate(1);
+        date.setHours(0, 0, 0, 0);
+        date.setMonth(date.getMonth() - index);
+
+        const monthKey = getMonthKey(date);
+
+        const count = completedTasks.filter((task) => {
+          if (!task.updated_at) return false;
+
+          return (
+            getMonthKey(new Date(task.updated_at)) ===
+            monthKey
+          );
+        }).length;
+
+        productivityData.push({
+          date: monthKey,
+          label: date.toLocaleDateString("en-IN", {
+            month: "short",
+          }),
+          count,
+        });
+      }
+    }
+
+    const maxProductivity = Math.max(
+      ...productivityData.map((item) => item.count),
+      1
+    );
+
+    // Fixed 7-day data for Weekly Activity.
     const weeklyData = [];
 
-    for (
-      let index = 6;
-      index >= 0;
-      index--
-    ) {
-      const date =
-        new Date();
+    for (let index = 6; index >= 0; index--) {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - index);
 
-      date.setHours(
-        0,
-        0,
-        0,
-        0
-      );
-
-      date.setDate(
-        date.getDate() -
-          index
-      );
-
-      const dateString =
-        getDateString(date);
-
-      const count =
-        completedTasks.filter(
-          (task) => {
-            if (
-              !task.updated_at
-            ) {
-              return false;
-            }
-
-            const completedDate =
-              new Date(
-                task.updated_at
-              );
-
-            return (
-              getDateString(
-                completedDate
-              ) === dateString
-            );
-          }
-        ).length;
+      const dateString = getDateString(date);
 
       weeklyData.push({
         date: dateString,
-        label:
-          date.toLocaleDateString(
-            "en-IN",
-            {
-              weekday: "short",
-            }
-          ),
-        count,
+        label: date.toLocaleDateString("en-IN", {
+          weekday: "short",
+        }),
+        count: getCompletedCountForDate(dateString),
       });
     }
 
-    const maxWeekly =
-      Math.max(
-        ...weeklyData.map(
-          (item) =>
-            item.count
-        ),
-        1
-      );
+    const maxWeekly = Math.max(
+      ...weeklyData.map((item) => item.count),
+      1
+    );
 
     // ---------------------------------------------
     // CATEGORY DATA
@@ -518,6 +577,8 @@ function Dashboard({ user, onLogout }) {
       todayProgress,
       upcomingTasks,
       overdue,
+      productivityData,
+      maxProductivity,
       weeklyData,
       maxWeekly,
       categoryData,
@@ -526,6 +587,7 @@ function Dashboard({ user, onLogout }) {
   }, [
     tasks,
     todayString,
+    productivityRange,
   ]);
 
   // =========================================================
@@ -829,14 +891,26 @@ function Dashboard({ user, onLogout }) {
                   </div>
 
                   <p className="mt-1 text-xs text-slate-500">
-                    Completed tasks over the last 7 days.
+                    Completed tasks over the selected period.
                   </p>
 
                 </div>
 
-                <div className="rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-1.5 text-xs text-slate-500">
-                  Last 7 days
-                </div>
+                <select
+                  value={productivityRange}
+                  onChange={(e) =>
+                    setProductivityRange(e.target.value)
+                  }
+                  className="cursor-pointer rounded-lg border border-slate-800 bg-slate-950/60 px-3 py-2 text-xs font-medium text-slate-400 outline-none transition hover:border-slate-700 hover:text-white focus:border-blue-500"
+                  aria-label="Productivity time range"
+                >
+                  <option value="1d">Last 1 day</option>
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                  <option value="3m">Last 3 months</option>
+                  <option value="6m">Last 6 months</option>
+                  <option value="1y">This year</option>
+                </select>
 
               </div>
 
@@ -844,10 +918,10 @@ function Dashboard({ user, onLogout }) {
 
                 <ProductivityChart
                   data={
-                    dashboardData.weeklyData
+                    dashboardData.productivityData
                   }
                   max={
-                    dashboardData.maxWeekly
+                    dashboardData.maxProductivity
                   }
                 />
 
@@ -2004,15 +2078,21 @@ function ProductivityChart({
 
       </svg>
 
-      <div className="mt-2 grid grid-cols-7">
+      <div
+        className="mt-2 grid"
+        style={{
+          gridTemplateColumns: `repeat(${Math.max(
+            data.length,
+            1
+          )}, minmax(0, 1fr))`,
+        }}
+      >
 
         {data.map(
           (item) => (
             <div
-              key={
-                item.date
-              }
-              className="text-center text-[10px] font-medium text-slate-600"
+              key={item.date}
+              className="truncate text-center text-[10px] font-medium text-slate-600"
             >
               {item.label}
             </div>

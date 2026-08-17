@@ -10,6 +10,8 @@ import {
 
 import { supabase } from "../supabaseClient";
 
+import TaskDetails from "./TaskDetails";
+
 function CalendarView({
   user,
   refreshKey = 0,
@@ -21,21 +23,29 @@ function CalendarView({
   // =====================================================
 
   const [tasks, setTasks] = useState([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasksLoading, setTasksLoading] =
+    useState(true);
 
   // =====================================================
   // CURRENT MONTH
   // =====================================================
 
-  const [currentDate, setCurrentDate] = useState(
-    new Date()
-  );
+  const [currentDate, setCurrentDate] =
+    useState(new Date());
 
   // =====================================================
   // SELECTED DATE
   // =====================================================
 
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] =
+    useState(null);
+
+  // =====================================================
+  // VIEWING TASK
+  // =====================================================
+
+  const [viewingTask, setViewingTask] =
+    useState(null);
 
   // =====================================================
   // FETCH TASKS
@@ -59,7 +69,10 @@ function CalendarView({
       }
 
       try {
-        const { data, error } = await supabase
+        const {
+          data,
+          error,
+        } = await supabase
           .from("tasks")
           .select("*")
           .eq("user_id", user.id)
@@ -106,20 +119,24 @@ function CalendarView({
   // YEAR / MONTH
   // =====================================================
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
+  const year =
+    currentDate.getFullYear();
+
+  const month =
+    currentDate.getMonth();
 
   // =====================================================
   // MONTH NAME
   // =====================================================
 
-  const monthName = currentDate.toLocaleDateString(
-    "en-US",
-    {
-      month: "long",
-      year: "numeric",
-    }
-  );
+  const monthName =
+    currentDate.toLocaleDateString(
+      "en-US",
+      {
+        month: "long",
+        year: "numeric",
+      }
+    );
 
   // =====================================================
   // WEEK DAYS
@@ -139,21 +156,23 @@ function CalendarView({
   // DAYS IN MONTH
   // =====================================================
 
-  const daysInMonth = new Date(
-    year,
-    month + 1,
-    0
-  ).getDate();
+  const daysInMonth =
+    new Date(
+      year,
+      month + 1,
+      0
+    ).getDate();
 
   // =====================================================
   // FIRST DAY OF MONTH
   // =====================================================
 
-  const firstDayOfMonth = new Date(
-    year,
-    month,
-    1
-  ).getDay();
+  const firstDayOfMonth =
+    new Date(
+      year,
+      month,
+      1
+    ).getDay();
 
   // =====================================================
   // TODAY
@@ -172,20 +191,23 @@ function CalendarView({
   // CREATE DATE STRING
   // =====================================================
 
-  const createDateString = (day) => {
+  const createDateString = (
+    day
+  ) => {
     return `${year}-${String(
       month + 1
-    ).padStart(2, "0")}-${String(day).padStart(
-      2,
-      "0"
-    )}`;
+    ).padStart(2, "0")}-${String(
+      day
+    ).padStart(2, "0")}`;
   };
 
   // =====================================================
   // NORMALIZE TASK DATE
   // =====================================================
 
-  const normalizeTaskDate = (date) => {
+  const normalizeTaskDate = (
+    date
+  ) => {
     if (!date) {
       return null;
     }
@@ -197,17 +219,21 @@ function CalendarView({
   // GET TASKS FOR DAY
   // =====================================================
 
-  const getTasksForDay = (day) => {
+  const getTasksForDay = (
+    day
+  ) => {
     if (!day) {
       return [];
     }
 
-    const dateString = createDateString(day);
+    const dateString =
+      createDateString(day);
 
     return tasks.filter(
       (task) =>
-        normalizeTaskDate(task.due_date) ===
-        dateString
+        normalizeTaskDate(
+          task.due_date
+        ) === dateString
     );
   };
 
@@ -215,58 +241,89 @@ function CalendarView({
   // SELECTED DATE TASKS
   // =====================================================
 
-  const selectedDateTasks = useMemo(() => {
-    if (!selectedDate) {
-      return [];
-    }
+  const selectedDateTasks =
+    useMemo(() => {
+      if (!selectedDate) {
+        return [];
+      }
 
-    return tasks.filter(
-      (task) =>
-        normalizeTaskDate(task.due_date) ===
-        selectedDate
-    );
-  }, [tasks, selectedDate]);
+      return tasks.filter(
+        (task) =>
+          normalizeTaskDate(
+            task.due_date
+          ) === selectedDate
+      );
+    }, [
+      tasks,
+      selectedDate,
+    ]);
 
   // =====================================================
   // PREVIOUS MONTH
   // =====================================================
 
-  const goToPreviousMonth = () => {
-    setCurrentDate(
-      new Date(year, month - 1, 1)
-    );
+  const goToPreviousMonth =
+    () => {
+      setCurrentDate(
+        new Date(
+          year,
+          month - 1,
+          1
+        )
+      );
 
-    setSelectedDate(null);
-  };
+      setSelectedDate(null);
+    };
 
   // =====================================================
   // NEXT MONTH
   // =====================================================
 
-  const goToNextMonth = () => {
-    setCurrentDate(
-      new Date(year, month + 1, 1)
-    );
+  const goToNextMonth =
+    () => {
+      setCurrentDate(
+        new Date(
+          year,
+          month + 1,
+          1
+        )
+      );
 
-    setSelectedDate(null);
-  };
+      setSelectedDate(null);
+    };
 
   // =====================================================
   // TODAY
   // =====================================================
 
   const goToToday = () => {
-    const now = new Date();
+    const now =
+      new Date();
+
+    const currentYear =
+      now.getFullYear();
+
+    const currentMonth =
+      now.getMonth();
+
+    const currentDay =
+      now.getDate();
 
     setCurrentDate(
       new Date(
-        now.getFullYear(),
-        now.getMonth(),
+        currentYear,
+        currentMonth,
         1
       )
     );
 
-    setSelectedDate(todayString);
+    setSelectedDate(
+      `${currentYear}-${String(
+        currentMonth + 1
+      ).padStart(2, "0")}-${String(
+        currentDay
+      ).padStart(2, "0")}`
+    );
   };
 
   // =====================================================
@@ -293,45 +350,123 @@ function CalendarView({
     calendarCells.push(day);
   }
 
+  // Keep consistent 6-row calendar
+  while (
+    calendarCells.length < 42
+  ) {
+    calendarCells.push(null);
+  }
+
   // =====================================================
   // SELECT DATE
   // =====================================================
 
-  const handleDateClick = (day) => {
+  const handleDateClick = (
+    day
+  ) => {
     if (!day) {
       return;
     }
 
-    const dateString = createDateString(day);
+    const dateString =
+      createDateString(day);
 
-    setSelectedDate(dateString);
+    setSelectedDate(
+      dateString
+    );
+  };
+
+  // =====================================================
+  // VIEW TASK DETAILS
+  // =====================================================
+
+  const handleViewTask = (
+    task
+  ) => {
+    if (!task) {
+      return;
+    }
+
+    setViewingTask(task);
+  };
+
+  // =====================================================
+  // CLOSE TASK DETAILS
+  // =====================================================
+
+  const handleCloseDetails =
+    () => {
+      setViewingTask(null);
+    };
+
+  // =====================================================
+  // EDIT TASK FROM DETAILS
+  // =====================================================
+
+  const handleEditFromDetails =
+    (task) => {
+      if (!task) {
+        return;
+      }
+
+      setViewingTask(null);
+
+      if (onEditTask) {
+        onEditTask(task);
+      }
+    };
+
+  // =====================================================
+  // EDIT TASK
+  // =====================================================
+
+  const handleEditTask = (
+    task
+  ) => {
+    if (!task) {
+      return;
+    }
+
+    if (onEditTask) {
+      onEditTask(task);
+    }
   };
 
   // =====================================================
   // FORMAT SELECTED DATE
   // =====================================================
 
-  const formattedSelectedDate = selectedDate
-    ? new Date(
-        `${selectedDate}T00:00:00`
-      ).toLocaleDateString("en-US", {
-        weekday: "long",
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : "";
+  const formattedSelectedDate =
+    selectedDate
+      ? new Date(
+          `${selectedDate}T00:00:00`
+        ).toLocaleDateString(
+          "en-US",
+          {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          }
+        )
+      : "";
 
   // =====================================================
   // PRIORITY CLASS
   // =====================================================
 
-  const getPriorityClass = (priority) => {
-    if (priority === "high") {
+  const getPriorityClass = (
+    priority
+  ) => {
+    if (
+      priority === "high"
+    ) {
       return "bg-red-500/10 text-red-400 border-red-500/20";
     }
 
-    if (priority === "medium") {
+    if (
+      priority === "medium"
+    ) {
       return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
     }
 
@@ -342,33 +477,46 @@ function CalendarView({
   // FORMAT DATE
   // =====================================================
 
-  const formatDate = (dateString) => {
+  const formatDate = (
+    dateString
+  ) => {
     if (!dateString) {
       return "";
     }
 
     return new Date(
       `${dateString}T00:00:00`
-    ).toLocaleDateString("en-US", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    ).toLocaleDateString(
+      "en-US",
+      {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }
+    );
   };
 
   // =====================================================
-  // EDIT TASK
+  // MONTH TASK COUNT
   // =====================================================
 
-  const handleEditTask = (task) => {
-    if (!task) {
-      return;
-    }
+  const monthTaskCount =
+    tasks.filter((task) => {
+      const normalizedDate =
+        normalizeTaskDate(
+          task.due_date
+        );
 
-    if (onEditTask) {
-      onEditTask(task);
-    }
-  };
+      if (!normalizedDate) {
+        return false;
+      }
+
+      return normalizedDate.startsWith(
+        `${year}-${String(
+          month + 1
+        ).padStart(2, "0")}`
+      );
+    }).length;
 
   // =====================================================
   // LOADING
@@ -426,8 +574,6 @@ function CalendarView({
 
       <div className="mb-6 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
 
-        {/* TITLE */}
-
         <div className="flex items-center gap-4">
 
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
@@ -454,11 +600,15 @@ function CalendarView({
 
           <button
             type="button"
-            onClick={goToPreviousMonth}
+            onClick={
+              goToPreviousMonth
+            }
             className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-400 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white"
             title="Previous month"
           >
-            <FiChevronLeft size={20} />
+            <FiChevronLeft
+              size={20}
+            />
           </button>
 
           <button
@@ -471,11 +621,15 @@ function CalendarView({
 
           <button
             type="button"
-            onClick={goToNextMonth}
+            onClick={
+              goToNextMonth
+            }
             className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-400 transition hover:border-blue-500/40 hover:bg-slate-800 hover:text-white"
             title="Next month"
           >
-            <FiChevronRight size={20} />
+            <FiChevronRight
+              size={20}
+            />
           </button>
 
         </div>
@@ -492,9 +646,17 @@ function CalendarView({
           {monthName}
         </h4>
 
-        <p className="mt-1 text-xs text-slate-600">
-          {tasks.length} total tasks
-        </p>
+        <div className="mt-2 flex items-center justify-center gap-2">
+
+          <span className="rounded-full border border-slate-800 bg-slate-950 px-3 py-1 text-[11px] font-medium text-slate-500">
+            {tasks.length} total tasks
+          </span>
+
+          <span className="rounded-full border border-blue-500/10 bg-blue-500/5 px-3 py-1 text-[11px] font-medium text-blue-400">
+            {monthTaskCount} this month
+          </span>
+
+        </div>
 
       </div>
 
@@ -504,14 +666,16 @@ function CalendarView({
 
       <div className="mb-2 grid grid-cols-7">
 
-        {weekDays.map((day) => (
-          <div
-            key={day}
-            className="py-3 text-center text-xs font-semibold tracking-wide text-slate-500"
-          >
-            {day}
-          </div>
-        ))}
+        {weekDays.map(
+          (day) => (
+            <div
+              key={day}
+              className="py-3 text-center text-xs font-semibold tracking-wide text-slate-500"
+            >
+              {day}
+            </div>
+          )
+        )}
 
       </div>
 
@@ -526,26 +690,40 @@ function CalendarView({
           <div className="grid grid-cols-7">
 
             {calendarCells.map(
-              (day, index) => {
-                const dateString = day
-                  ? createDateString(day)
-                  : null;
+              (
+                day,
+                index
+              ) => {
 
-                const dayTasks = day
-                  ? getTasksForDay(day)
-                  : [];
+                const dateString =
+                  day
+                    ? createDateString(
+                        day
+                      )
+                    : null;
+
+                const dayTasks =
+                  day
+                    ? getTasksForDay(
+                        day
+                      )
+                    : [];
 
                 const isToday =
-                  dateString === todayString;
+                  dateString ===
+                  todayString;
 
                 const isSelected =
-                  dateString === selectedDate;
+                  dateString ===
+                  selectedDate;
 
                 return (
                   <div
                     key={`${day}-${index}`}
                     onClick={() =>
-                      handleDateClick(day)
+                      handleDateClick(
+                        day
+                      )
                     }
                     className={`relative min-h-[125px] border-b border-r border-slate-800/80 p-3 text-left transition ${
                       !day
@@ -573,9 +751,12 @@ function CalendarView({
                           {day}
                         </span>
 
-                        {dayTasks.length > 0 && (
+                        {dayTasks.length >
+                          0 && (
                           <span className="text-[10px] font-medium text-slate-600">
-                            {dayTasks.length}
+                            {
+                              dayTasks.length
+                            }
                           </span>
                         )}
 
@@ -585,44 +766,56 @@ function CalendarView({
                     {/* TASK PREVIEWS */}
 
                     {day &&
-                      dayTasks.length > 0 && (
+                      dayTasks.length >
+                        0 && (
                         <div className="mt-3 space-y-1.5">
 
                           {dayTasks
                             .slice(0, 3)
-                            .map((task) => {
-                              const priority =
-                                task.priority ||
-                                "medium";
+                            .map(
+                              (
+                                task
+                              ) => {
 
-                              return (
-                                <button
-                                  type="button"
-                                  key={task.id}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                const priority =
+                                  task.priority ||
+                                  "medium";
 
-                                    handleEditTask(
-                                      task
-                                    );
-                                  }}
-                                  className={`block w-full truncate rounded-lg border px-2 py-1.5 text-left text-[10px] font-medium transition hover:scale-[1.02] ${getPriorityClass(
-                                    priority
-                                  )} ${
-                                    task.completed
-                                      ? "opacity-50 line-through"
-                                      : ""
-                                  }`}
-                                  title={`Edit: ${task.title}`}
-                                >
-                                  <span className="mr-1">
-                                    •
-                                  </span>
+                                return (
+                                  <button
+                                    type="button"
+                                    key={
+                                      task.id
+                                    }
+                                    onClick={(
+                                      event
+                                    ) => {
+                                      event.stopPropagation();
 
-                                  {task.title}
-                                </button>
-                              );
-                            })}
+                                      handleViewTask(
+                                        task
+                                      );
+                                    }}
+                                    className={`block w-full truncate rounded-lg border px-2 py-1.5 text-left text-[10px] font-medium transition hover:scale-[1.02] ${getPriorityClass(
+                                      priority
+                                    )} ${
+                                      task.completed
+                                        ? "opacity-50 line-through"
+                                        : ""
+                                    }`}
+                                    title={`View: ${task.title}`}
+                                  >
+                                    <span className="mr-1">
+                                      •
+                                    </span>
+
+                                    {
+                                      task.title
+                                    }
+                                  </button>
+                                );
+                              }
+                            )}
 
                           {dayTasks.length >
                             3 && (
@@ -665,14 +858,29 @@ function CalendarView({
                 Selected Date
               </p>
 
-              <h4 className="mt-1 text-lg font-bold text-white">
-                {formattedSelectedDate}
-              </h4>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+
+                <h4 className="text-lg font-bold text-white">
+                  {
+                    formattedSelectedDate
+                  }
+                </h4>
+
+                {selectedDate ===
+                  todayString && (
+                  <span className="rounded-full bg-blue-500/10 px-2 py-1 text-[10px] font-semibold text-blue-400">
+                    Today
+                  </span>
+                )}
+
+              </div>
 
             </div>
 
             <span className="w-fit rounded-full border border-slate-800 bg-slate-950 px-3 py-1.5 text-xs font-medium text-slate-400">
-              {selectedDateTasks.length}{" "}
+              {
+                selectedDateTasks.length
+              }{" "}
               {selectedDateTasks.length ===
               1
                 ? "task"
@@ -688,7 +896,9 @@ function CalendarView({
             <div className="rounded-xl border border-dashed border-slate-800 px-5 py-10 text-center">
 
               <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-slate-600">
-                <FiCalendar size={18} />
+                <FiCalendar
+                  size={18}
+                />
               </div>
 
               <p className="mt-3 text-sm font-medium text-slate-400">
@@ -702,12 +912,11 @@ function CalendarView({
 
             </div>
           ) : (
-            /* TASK DETAILS */
-
             <div className="space-y-3">
 
               {selectedDateTasks.map(
                 (task) => {
+
                   const priority =
                     task.priority ||
                     "medium";
@@ -715,10 +924,15 @@ function CalendarView({
                   return (
                     <div
                       key={task.id}
-                      className={`rounded-xl border p-4 transition ${
+                      onClick={() =>
+                        handleViewTask(
+                          task
+                        )
+                      }
+                      className={`cursor-pointer rounded-xl border p-4 text-left transition ${
                         task.completed
-                          ? "border-green-500/10 bg-green-500/5"
-                          : "border-slate-800 bg-slate-900/50 hover:border-slate-700"
+                          ? "border-green-500/10 bg-green-500/5 hover:border-green-500/30"
+                          : "border-slate-800 bg-slate-900/50 hover:border-blue-500/30 hover:bg-slate-900"
                       }`}
                     >
 
@@ -753,7 +967,9 @@ function CalendarView({
                                   : "text-white"
                               }`}
                             >
-                              {task.title}
+                              {
+                                task.title
+                              }
                             </h5>
 
                             {/* PRIORITY */}
@@ -763,7 +979,9 @@ function CalendarView({
                                 priority
                               )}`}
                             >
-                              {priority}
+                              {
+                                priority
+                              }
                             </span>
 
                             {/* CATEGORY */}
@@ -835,11 +1053,15 @@ function CalendarView({
 
                             <button
                               type="button"
-                              onClick={() =>
+                              onClick={(
+                                event
+                              ) => {
+                                event.stopPropagation();
+
                                 handleEditTask(
                                   task
-                                )
-                              }
+                                );
+                              }}
                               className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-xs font-semibold text-slate-400 transition hover:border-blue-500/30 hover:bg-blue-500/10 hover:text-blue-400"
                             >
                               <FiEdit3
@@ -864,6 +1086,22 @@ function CalendarView({
           )}
 
         </div>
+      )}
+
+      {/* ================================================= */}
+      {/* TASK DETAILS MODAL */}
+      {/* ================================================= */}
+
+      {viewingTask && (
+        <TaskDetails
+          task={viewingTask}
+          onClose={
+            handleCloseDetails
+          }
+          onEdit={
+            handleEditFromDetails
+          }
+        />
       )}
 
     </section>
