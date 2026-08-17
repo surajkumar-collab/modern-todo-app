@@ -30,7 +30,7 @@ export async function createNotification({
 
     let query = supabase
       .from("notifications")
-      .select("id")
+      .select("*")
       .eq(
         "user_id",
         userId
@@ -38,25 +38,26 @@ export async function createNotification({
       .eq(
         "type",
         type
+      )
+      .eq(
+        "title",
+        title
       );
 
-    // For task-related notifications,
-    // check the same task.
+    // Task notifications are linked
+    // to a specific task.
 
     if (taskId) {
       query = query.eq(
         "task_id",
         taskId
       );
+    } else {
+      query = query.is(
+        "task_id",
+        null
+      );
     }
-
-    // For the same notification,
-    // use the same title.
-
-    query = query.eq(
-      "title",
-      title
-    );
 
     const {
       data: existing,
@@ -127,15 +128,13 @@ export async function createNotification({
 // CREATE TASK DATE NOTIFICATION
 // =========================================================
 
-export async function createTaskDateNotification(
-  {
-    userId,
-    task,
-    type,
-    title,
-    message,
-  }
-) {
+export async function createTaskDateNotification({
+  userId,
+  task,
+  type,
+  title,
+  message,
+}) {
   if (
     !userId ||
     !task?.id
@@ -172,15 +171,13 @@ export async function createTaskDateNotification(
 }
 
 // =========================================================
-// CHECK TASK DATE
+// CHECK SINGLE TASK DATE
 // =========================================================
 
-export async function checkTaskDateNotification(
-  {
-    userId,
-    task,
-  }
-) {
+export async function checkTaskDateNotification({
+  userId,
+  task,
+}) {
   if (
     !userId ||
     !task?.id ||
@@ -204,6 +201,10 @@ export async function checkTaskDateNotification(
       now.getDate()
     );
 
+  // =======================================================
+  // DUE DATE
+  // =======================================================
+
   const dueDate =
     new Date(
       `${task.due_date}T00:00:00`
@@ -215,6 +216,10 @@ export async function checkTaskDateNotification(
     0,
     0
   );
+
+  // =======================================================
+  // DIFFERENCE
+  // =======================================================
 
   const diffTime =
     dueDate.getTime() -
@@ -233,7 +238,9 @@ export async function checkTaskDateNotification(
   // OVERDUE
   // =======================================================
 
-  if (diffDays < 0) {
+  if (
+    diffDays < 0
+  ) {
     return createTaskDateNotification({
       userId,
 
@@ -256,7 +263,9 @@ export async function checkTaskDateNotification(
   // DUE TODAY
   // =======================================================
 
-  if (diffDays === 0) {
+  if (
+    diffDays === 0
+  ) {
     return createTaskDateNotification({
       userId,
 
@@ -274,10 +283,13 @@ export async function checkTaskDateNotification(
   }
 
   // =======================================================
-  // UPCOMING — TOMORROW
+  // UPCOMING
   // =======================================================
 
-  if (diffDays === 1) {
+  if (
+    diffDays >= 1 &&
+    diffDays <= 7
+  ) {
     return createTaskDateNotification({
       userId,
 
@@ -290,7 +302,11 @@ export async function checkTaskDateNotification(
         "Upcoming task",
 
       message:
-        `"${task.title}" is due tomorrow.`,
+        `"${task.title}" is due in ${diffDays} ${
+          diffDays === 1
+            ? "day"
+            : "days"
+        }.`,
     });
   }
 
@@ -298,15 +314,13 @@ export async function checkTaskDateNotification(
 }
 
 // =========================================================
-// CHECK MULTIPLE TASKS
+// CHECK ALL TASKS
 // =========================================================
 
-export async function checkTasksForNotifications(
-  {
-    userId,
-    tasks = [],
-  }
-) {
+export async function checkTasksForNotifications({
+  userId,
+  tasks = [],
+}) {
   if (
     !userId ||
     !Array.isArray(tasks)
@@ -316,7 +330,9 @@ export async function checkTasksForNotifications(
 
   const results = [];
 
-  for (const task of tasks) {
+  for (
+    const task of tasks
+  ) {
     if (
       task.completed ||
       !task.due_date
@@ -324,15 +340,24 @@ export async function checkTasksForNotifications(
       continue;
     }
 
-    const notification =
-      await checkTaskDateNotification({
-        userId,
-        task,
-      });
+    try {
+      const notification =
+        await checkTaskDateNotification({
+          userId,
+          task,
+        });
 
-    if (notification) {
-      results.push(
+      if (
         notification
+      ) {
+        results.push(
+          notification
+        );
+      }
+    } catch (error) {
+      console.error(
+        `Notification check failed for task ${task.id}:`,
+        error
       );
     }
   }

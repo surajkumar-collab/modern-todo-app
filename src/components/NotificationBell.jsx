@@ -9,12 +9,17 @@ import {
 } from "react-icons/fi";
 
 function NotificationBell({ user }) {
-  const [notifications, setNotifications] = useState([]);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [notifications, setNotifications] =
+    useState([]);
+
+  const [open, setOpen] =
+    useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
 
   // =========================================
-  // FETCH
+  // FETCH NOTIFICATIONS
   // =========================================
 
   useEffect(() => {
@@ -29,19 +34,24 @@ function NotificationBell({ user }) {
       try {
         setLoading(true);
 
-        const { data, error } = await supabase
-          .from("notifications")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", {
-            ascending: false,
-          })
-          .limit(30);
+        const { data, error } =
+          await supabase
+            .from("notifications")
+            .select("*")
+            .eq("user_id", user.id)
+            .order("created_at", {
+              ascending: false,
+            })
+            .limit(30);
 
-        if (error) throw error;
+        if (error) {
+          throw error;
+        }
 
         if (mounted) {
-          setNotifications(data || []);
+          setNotifications(
+            data || []
+          );
         }
       } catch (error) {
         console.error(
@@ -63,197 +73,510 @@ function NotificationBell({ user }) {
   }, [user?.id]);
 
   // =========================================
-  // UNREAD
+  // SUPABASE REALTIME
   // =========================================
 
-  const unreadCount = notifications.filter(
-    (notification) => !notification.is_read
-  ).length;
+  useEffect(() => {
+    if (!user?.id) {
+      return;
+    }
+
+    console.log(
+      "Starting notification realtime..."
+    );
+
+    const channel =
+      supabase
+        .channel(
+          `notifications-${user.id}`
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log(
+              "Notification realtime event:",
+              payload
+            );
+
+            // =====================================
+            // INSERT
+            // =====================================
+
+            if (
+              payload.eventType ===
+              "INSERT"
+            ) {
+              setNotifications(
+                (prev) => {
+                  const exists =
+                    prev.some(
+                      (
+                        notification
+                      ) =>
+                        notification.id ===
+                        payload.new.id
+                    );
+
+                  if (exists) {
+                    return prev;
+                  }
+
+                  return [
+                    payload.new,
+                    ...prev,
+                  ].slice(0, 30);
+                }
+              );
+
+              return;
+            }
+
+            // =====================================
+            // UPDATE
+            // =====================================
+
+            if (
+              payload.eventType ===
+              "UPDATE"
+            ) {
+              setNotifications(
+                (prev) =>
+                  prev.map(
+                    (
+                      notification
+                    ) =>
+                      notification.id ===
+                      payload.new.id
+                        ? payload.new
+                        : notification
+                  )
+              );
+
+              return;
+            }
+
+            // =====================================
+            // DELETE
+            // =====================================
+
+            if (
+              payload.eventType ===
+              "DELETE"
+            ) {
+              setNotifications(
+                (prev) =>
+                  prev.filter(
+                    (
+                      notification
+                    ) =>
+                      notification.id !==
+                      payload.old.id
+                  )
+              );
+            }
+          }
+        )
+        .subscribe(
+          (status) => {
+            console.log(
+              "Notification realtime status:",
+              status
+            );
+          }
+        );
+
+    // =========================================
+    // CLEANUP
+    // =========================================
+
+    return () => {
+      console.log(
+        "Stopping notification realtime..."
+      );
+
+      supabase.removeChannel(
+        channel
+      );
+    };
+  }, [user?.id]);
+
+  // =========================================
+  // UNREAD COUNT
+  // =========================================
+
+  const unreadCount =
+    notifications.filter(
+      (notification) =>
+        !notification.is_read
+    ).length;
 
   // =========================================
   // MARK ONE AS READ
   // =========================================
 
-  const markAsRead = async (notificationId) => {
-    if (!user?.id || !notificationId) return;
+  const markAsRead = async (
+    notificationId
+  ) => {
+    if (
+      !user?.id ||
+      !notificationId
+    ) {
+      return;
+    }
 
     console.log(
-      "Marking notification as read:",
+      "MARK AS READ CLICKED:",
       notificationId
     );
 
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({
-          is_read: true,
-        })
-        .eq("id", notificationId)
-        .eq("user_id", user.id);
+    // =========================================
+    // UPDATE UI IMMEDIATELY
+    // =========================================
 
-      if (error) {
-        console.error(
-          "Supabase mark read error:",
-          error
-        );
-        return;
-      }
-
-      setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.id === notificationId
-            ? {
-                ...notification,
-                is_read: true,
-              }
-            : notification
-        )
-      );
-    } catch (error) {
-      console.error(
-        "Mark notification read error:",
-        error
-      );
-    }
-  };
-
-  // =========================================
-  // MARK ALL
-  // =========================================
-
-  const markAllAsRead = async () => {
-    if (!user?.id || unreadCount === 0) return;
-
-    console.log("Marking all notifications as read");
-
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({
-          is_read: true,
-        })
-        .eq("user_id", user.id)
-        .eq("is_read", false);
-
-      if (error) {
-        console.error(
-          "Supabase mark all read error:",
-          error
-        );
-        return;
-      }
-
-      setNotifications((prev) =>
-        prev.map((notification) => ({
-          ...notification,
-          is_read: true,
-        }))
-      );
-    } catch (error) {
-      console.error(
-        "Mark all notifications read error:",
-        error
-      );
-    }
-  };
-
-  // =========================================
-  // DELETE
-  // =========================================
-
-  const deleteNotification = async (
-    notificationId
-  ) => {
-    if (!user?.id || !notificationId) return;
-
-    try {
-      const { error } = await supabase
-        .from("notifications")
-        .delete()
-        .eq("id", notificationId)
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error(
-          "Supabase delete notification error:",
-          error
-        );
-        return;
-      }
-
-      setNotifications((prev) =>
-        prev.filter(
+    setNotifications(
+      (prev) =>
+        prev.map(
           (notification) =>
-            notification.id !== notificationId
+            notification.id ===
+            notificationId
+              ? {
+                  ...notification,
+                  is_read: true,
+                }
+              : notification
         )
+    );
+
+    // =========================================
+    // UPDATE DATABASE
+    // =========================================
+
+    try {
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("notifications")
+        .update({
+          is_read: true,
+        })
+        .eq(
+          "id",
+          notificationId
+        )
+        .eq(
+          "user_id",
+          user.id
+        )
+        .select()
+        .single();
+
+      if (error) {
+        console.error(
+          "MARK AS READ SUPABASE ERROR:",
+          error
+        );
+
+        // Rollback UI
+
+        setNotifications(
+          (prev) =>
+            prev.map(
+              (
+                notification
+              ) =>
+                notification.id ===
+                notificationId
+                  ? {
+                      ...notification,
+                      is_read: false,
+                    }
+                  : notification
+            )
+        );
+
+        return;
+      }
+
+      console.log(
+        "MARK AS READ SUCCESS:",
+        data
       );
     } catch (error) {
       console.error(
-        "Delete notification error:",
+        "MARK AS READ ERROR:",
         error
+      );
+
+      // Rollback UI
+
+      setNotifications(
+        (prev) =>
+          prev.map(
+            (
+              notification
+            ) =>
+              notification.id ===
+              notificationId
+                ? {
+                    ...notification,
+                    is_read: false,
+                  }
+                : notification
+          )
       );
     }
   };
 
   // =========================================
-  // NOTIFICATION CLICK
+  // MARK ALL AS READ
   // =========================================
 
-  const handleNotificationClick = async (
-    notification
-  ) => {
-    if (!notification) return;
+  const markAllAsRead =
+    async () => {
+      if (
+        !user?.id ||
+        unreadCount === 0
+      ) {
+        return;
+      }
 
-    console.log(
-      "Notification clicked:",
+      console.log(
+        "MARK ALL AS READ CLICKED"
+      );
+
+      // =======================================
+      // UPDATE UI
+      // =======================================
+
+      setNotifications(
+        (prev) =>
+          prev.map(
+            (notification) => ({
+              ...notification,
+              is_read: true,
+            })
+          )
+      );
+
+      // =======================================
+      // UPDATE DATABASE
+      // =======================================
+
+      try {
+        const { error } =
+          await supabase
+            .from("notifications")
+            .update({
+              is_read: true,
+            })
+            .eq(
+              "user_id",
+              user.id
+            )
+            .eq(
+              "is_read",
+              false
+            );
+
+        if (error) {
+          console.error(
+            "MARK ALL READ SUPABASE ERROR:",
+            error
+          );
+
+          // Reload from database
+
+          const {
+            data,
+          } =
+            await supabase
+              .from(
+                "notifications"
+              )
+              .select("*")
+              .eq(
+                "user_id",
+                user.id
+              )
+              .order(
+                "created_at",
+                {
+                  ascending:
+                    false,
+                }
+              )
+              .limit(30);
+
+          setNotifications(
+            data || []
+          );
+
+          return;
+        }
+
+        console.log(
+          "MARK ALL AS READ SUCCESS"
+        );
+      } catch (error) {
+        console.error(
+          "MARK ALL READ ERROR:",
+          error
+        );
+      }
+    };
+
+  // =========================================
+  // DELETE NOTIFICATION
+  // =========================================
+
+  const deleteNotification =
+    async (
+      notificationId
+    ) => {
+      if (
+        !user?.id ||
+        !notificationId
+      ) {
+        return;
+      }
+
+      try {
+        const { error } =
+          await supabase
+            .from(
+              "notifications"
+            )
+            .delete()
+            .eq(
+              "id",
+              notificationId
+            )
+            .eq(
+              "user_id",
+              user.id
+            );
+
+        if (error) {
+          throw error;
+        }
+
+        setNotifications(
+          (prev) =>
+            prev.filter(
+              (
+                notification
+              ) =>
+                notification.id !==
+                notificationId
+            )
+        );
+      } catch (error) {
+        console.error(
+          "Delete notification error:",
+          error
+        );
+      }
+    };
+
+  // =========================================
+  // OPEN NOTIFICATION
+  // =========================================
+
+  const handleNotificationClick =
+    async (
       notification
-    );
+    ) => {
+      if (!notification) {
+        return;
+      }
 
-    if (!notification.is_read) {
-      await markAsRead(notification.id);
-    }
+      console.log(
+        "Notification clicked:",
+        notification
+      );
 
-    setOpen(false);
+      if (
+        !notification.is_read
+      ) {
+        await markAsRead(
+          notification.id
+        );
+      }
 
-    if (notification.task_id) {
-      window.location.href =
-        `/tasks?task=${encodeURIComponent(
-          notification.task_id
-        )}`;
-    }
-  };
+      setOpen(false);
+
+      // =======================================
+      // OPEN RELATED TASK
+      // =======================================
+
+      if (
+        notification.task_id
+      ) {
+        window.location.href =
+          `/tasks?task=${encodeURIComponent(
+            notification.task_id
+          )}`;
+      }
+    };
 
   // =========================================
-  // TIME
+  // TIME AGO
   // =========================================
 
-  const formatTimeAgo = (createdAt) => {
-    if (!createdAt) return "";
+  const formatTimeAgo = (
+    createdAt
+  ) => {
+    if (!createdAt) {
+      return "";
+    }
 
-    const created = new Date(createdAt);
-    const now = new Date();
+    const created =
+      new Date(
+        createdAt
+      );
 
-    const seconds = Math.floor(
-      (now - created) / 1000
-    );
+    const now =
+      new Date();
+
+    const seconds =
+      Math.floor(
+        (now - created) /
+          1000
+      );
 
     if (seconds < 60) {
       return "Just now";
     }
 
-    const minutes = Math.floor(seconds / 60);
+    const minutes =
+      Math.floor(
+        seconds / 60
+      );
 
     if (minutes < 60) {
       return `${minutes}m ago`;
     }
 
-    const hours = Math.floor(minutes / 60);
+    const hours =
+      Math.floor(
+        minutes / 60
+      );
 
     if (hours < 24) {
       return `${hours}h ago`;
     }
 
-    const days = Math.floor(hours / 24);
+    const days =
+      Math.floor(
+        hours / 24
+      );
 
     if (days < 7) {
       return `${days}d ago`;
@@ -272,33 +595,34 @@ function NotificationBell({ user }) {
   // ICON
   // =========================================
 
-  const getNotificationIcon = (type) => {
-    switch (type) {
-      case "task_completed":
-        return "✓";
+  const getNotificationIcon =
+    (type) => {
+      switch (type) {
+        case "task_completed":
+          return "✓";
 
-      case "task_created":
-        return "+";
+        case "task_created":
+          return "+";
 
-      case "task_updated":
-        return "✎";
+        case "task_updated":
+          return "✎";
 
-      case "task_overdue":
-        return "!";
+        case "task_overdue":
+          return "!";
 
-      case "task_due_today":
-        return "•";
+        case "task_due_today":
+          return "•";
 
-      case "task_upcoming":
-        return "◷";
+        case "task_upcoming":
+          return "◷";
 
-      case "productivity":
-        return "↗";
+        case "productivity":
+          return "↗";
 
-      default:
-        return "•";
-    }
-  };
+        default:
+          return "•";
+      }
+    };
 
   // =========================================
   // RENDER
@@ -313,7 +637,11 @@ function NotificationBell({ user }) {
 
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() =>
+          setOpen(
+            (prev) => !prev
+          )
+        }
         className="
           relative
           flex
@@ -377,7 +705,9 @@ function NotificationBell({ user }) {
               inset-0
               z-[90]
             "
-            onClick={() => setOpen(false)}
+            onClick={() =>
+              setOpen(false)
+            }
           />
 
           {/* PANEL */}
@@ -414,7 +744,9 @@ function NotificationBell({ user }) {
                 py-3
               "
             >
+
               <div>
+
                 <h3 className="text-sm font-semibold text-white">
                   Notifications
                 </h3>
@@ -424,6 +756,7 @@ function NotificationBell({ user }) {
                     ? `${unreadCount} unread`
                     : "You're all caught up"}
                 </p>
+
               </div>
 
               <div className="flex items-center gap-1">
@@ -431,8 +764,11 @@ function NotificationBell({ user }) {
                 {unreadCount > 0 && (
                   <button
                     type="button"
-                    onClick={(event) => {
+                    onClick={(
+                      event
+                    ) => {
                       event.stopPropagation();
+
                       markAllAsRead();
                     }}
                     className="
@@ -455,9 +791,14 @@ function NotificationBell({ user }) {
 
                 <button
                   type="button"
-                  onClick={(event) => {
+                  onClick={(
+                    event
+                  ) => {
                     event.stopPropagation();
-                    setOpen(false);
+
+                    setOpen(
+                      false
+                    );
                   }}
                   className="
                     relative
@@ -477,7 +818,9 @@ function NotificationBell({ user }) {
                 >
                   <FiX size={15} />
                 </button>
+
               </div>
+
             </div>
 
             {/* ================================= */}
@@ -487,6 +830,7 @@ function NotificationBell({ user }) {
             <div className="max-h-[420px] overflow-y-auto">
 
               {loading ? (
+
                 <div className="px-4 py-10 text-center">
 
                   <div
@@ -505,9 +849,11 @@ function NotificationBell({ user }) {
                   <p className="mt-3 text-xs text-slate-600">
                     Loading notifications...
                   </p>
+
                 </div>
 
-              ) : notifications.length === 0 ? (
+              ) : notifications.length ===
+                0 ? (
 
                 <div className="px-5 py-12 text-center">
 
@@ -534,6 +880,7 @@ function NotificationBell({ user }) {
                   <p className="mt-1 text-xs text-slate-600">
                     No new notifications.
                   </p>
+
                 </div>
 
               ) : (
@@ -541,10 +888,14 @@ function NotificationBell({ user }) {
                 <div>
 
                   {notifications.map(
-                    (notification) => (
+                    (
+                      notification
+                    ) => (
 
                       <div
-                        key={notification.id}
+                        key={
+                          notification.id
+                        }
                         className={`
                           border-b
                           border-slate-900
@@ -597,7 +948,7 @@ function NotificationBell({ user }) {
 
                           <div className="min-w-0 flex-1">
 
-                            {/* CLICKABLE TITLE */}
+                            {/* CLICKABLE NOTIFICATION */}
 
                             <button
                               type="button"
@@ -646,6 +997,7 @@ function NotificationBell({ user }) {
                                     "
                                   />
                                 )}
+
                               </div>
 
                               {notification.message && (
@@ -670,7 +1022,7 @@ function NotificationBell({ user }) {
 
                               <div className="flex items-center gap-1">
 
-                                {/* MARK READ */}
+                                {/* MARK AS READ */}
 
                                 {!notification.is_read && (
                                   <button
@@ -725,20 +1077,26 @@ function NotificationBell({ user }) {
                                 </button>
 
                               </div>
+
                             </div>
 
                           </div>
+
                         </div>
+
                       </div>
                     )
                   )}
 
                 </div>
               )}
+
             </div>
+
           </div>
         </>
       )}
+
     </div>
   );
 }
