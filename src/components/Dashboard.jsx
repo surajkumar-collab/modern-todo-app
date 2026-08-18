@@ -854,13 +854,13 @@ function Dashboard({ user, onLogout }) {
   // =========================================================
 
   return (
-    <div className="min-h-screen w-full bg-slate-950 text-white">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-white">
 
       {/* ================================================= */}
       {/* MAIN DASHBOARD */}
       {/* ================================================= */}
 
-      <main className="w-full">
+      <main className="w-full max-w-full min-w-0">
 
         {/* ================================================= */}
         {/* HEADER */}
@@ -886,7 +886,7 @@ function Dashboard({ user, onLogout }) {
 
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex w-full flex-wrap sm:w-auto items-center gap-3">
 
               <div className="rounded-xl border border-slate-800 bg-slate-900/70 px-4 py-2.5">
 
@@ -902,12 +902,28 @@ function Dashboard({ user, onLogout }) {
 
               <button
                 type="button"
-                onClick={() =>
-                  setShowTaskForm(
-                    true
-                  )
-                }
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/10 transition hover:scale-[1.02] hover:shadow-cyan-500/20"
+                onClick={() => setShowTaskForm(true)}
+                className="
+                  flex
+                  shrink-0
+                  items-center
+                  justify-center
+                  gap-2
+                  rounded-xl
+                  bg-gradient-to-r
+                  from-blue-600
+                  to-cyan-500
+                  px-4
+                  py-3
+                  text-sm
+                  font-semibold
+                  text-white
+                  shadow-lg
+                  shadow-blue-500/10
+                  transition
+                  hover:scale-[1.02]
+                  hover:shadow-cyan-500/20
+                "
               >
                 <FiPlus
                   size={17}

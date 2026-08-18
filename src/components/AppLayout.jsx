@@ -1125,9 +1125,147 @@ function AppLayout({
   // =========================================================
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-white">
 
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen w-full max-w-full">
+
+        {/* ================================================= */}
+        {/* MOBILE ICON SIDEBAR */}
+        {/* ================================================= */}
+
+        <aside
+          className="
+            fixed
+            inset-y-0
+            left-0
+            z-50
+            flex
+            w-[58px]
+            flex-col
+            items-center
+            border-r
+            border-slate-800/80
+            bg-[#070b18]
+            lg:hidden
+          "
+        >
+          {/* LOGO */}
+
+          <div
+            className="
+              flex
+              h-16
+              w-full
+              items-center
+              justify-center
+              border-b
+              border-slate-800/80
+            "
+          >
+            <div
+              className="
+                flex
+                h-9
+                w-9
+                items-center
+                justify-center
+                rounded-xl
+                bg-blue-500/10
+                text-blue-400
+              "
+            >
+              <FiLayers size={18} />
+            </div>
+          </div>
+
+          {/* NAVIGATION */}
+
+          <nav className="mt-5 flex w-full flex-col items-center gap-2">
+            {navigation.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  title={item.name}
+                  className={({ isActive }) =>
+                    `
+                    relative
+                    flex
+                    h-10
+                    w-10
+                    items-center
+                    justify-center
+                    rounded-xl
+                    transition-all
+                    duration-200
+                    ${
+                      isActive
+                        ? "bg-blue-500/15 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.12)]"
+                        : "text-slate-600 hover:bg-slate-900 hover:text-slate-300"
+                    }
+                    `
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <span
+                          className="
+                            absolute
+                            -left-[9px]
+                            h-6
+                            w-[3px]
+                            rounded-r-full
+                            bg-blue-400
+                            shadow-[0_0_10px_rgba(59,130,246,0.8)]
+                          "
+                        />
+                      )}
+
+                      <Icon size={18} />
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
+          </nav>
+
+          {/* SETTINGS */}
+
+          <div className="mt-auto mb-5">
+            {secondaryNavigation.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  title={item.name}
+                  className={({ isActive }) =>
+                    `
+                    flex
+                    h-10
+                    w-10
+                    items-center
+                    justify-center
+                    rounded-xl
+                    transition-all
+                    ${
+                      isActive
+                        ? "bg-blue-500/15 text-blue-400"
+                        : "text-slate-600 hover:bg-slate-900 hover:text-slate-300"
+                    }
+                    `
+                  }
+                >
+                  <Icon size={18} />
+                </NavLink>
+              );
+            })}
+          </div>
+        </aside>
 
         {/* ================================================= */}
         {/* SIDEBAR */}
@@ -1450,7 +1588,12 @@ function AppLayout({
 
         <main
           className="
-            min-w-0 flex-1
+            min-w-0 
+            w-full
+            max-w-full
+            overflow-x-hidden
+            flex-1
+            ml-[58px]
             lg:ml-[250px]
           "
         >
@@ -1576,7 +1719,7 @@ function AppLayout({
 
           <div
             className="
-              sticky top-0 z-40
+              sticky top-0 z-40 ml-[58px]
               flex h-16
               items-center
               justify-between
@@ -1651,7 +1794,7 @@ function AppLayout({
 
           {/* PAGE */}
 
-          <div className="min-w-0">
+          <div className="min-w-0 w-full max-w-full overflow-x-hidden">
             <Outlet />
           </div>
 
